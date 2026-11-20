@@ -32,6 +32,12 @@
             'url'   => $resolveUrl('dashboard', '/'),
         ],
         [
+            'key'   => 'folders',
+            'label' => 'Folders',
+            'icon'  => 'folders',
+            'url'   => $resolveUrl('folders.index', '/folders'),
+        ],
+        [
             'key'      => 'product',
             'label'    => 'Product',
             'icon'     => 'product',
@@ -305,6 +311,12 @@
                                     <circle cx="16" cy="8" r="2.75"/>
                                     <circle cx="8" cy="16" r="2.75"/>
                                     <circle cx="16" cy="16" r="2.75"/>
+                                </svg>
+                                @break
+
+                            @case('folders')
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                                 </svg>
                                 @break
 

@@ -1,3 +1,13 @@
+import { createClient } from '@supabase/supabase-js';
+
+// Inisialisasi Supabase Client untuk Realtime
+const supabaseUrl = document.querySelector('meta[name="supabase-url"]')?.getAttribute('content') || 'https://wqjfunxfngowxwdmyzyj.supabase.co';
+const supabaseKey = document.querySelector('meta[name="supabase-key"]')?.getAttribute('content') || 'sb_publishable_u2lBe4CRF_2XEqbkniBjbw_p0gGEXgZ';
+
+if (supabaseUrl && supabaseKey) {
+    window.supabase = createClient(supabaseUrl, supabaseKey);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Sidebar toggle (Desktop collapse/expand & Mobile drawer)
     const sidebar = document.getElementById('app-sidebar');

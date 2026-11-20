@@ -90,3 +90,20 @@
         pointer-events: none;
     }
 }
+
+/* Animasi Slide & Highlight untuk Screenshot Baru Realtime */
+@keyframes newCardSlide {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.new-screenshot-highlight {
+    animation: newCardSlide 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 0 0 2px #3BB77E, 0 14px 28px -10px rgba(16, 24, 40, 0.15) !important;
+}

@@ -13,12 +13,80 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        $folders = $this->fetchFolders();
+
+        return view('dashboard', compact('folders'));
+    }
+
+    /**
+     * Tampilkan halaman Folders dengan data dari tabel Supabase hasil_ss (difilter per user).
+     */
+    public function folders(Request $request)
+    {
+        $supabaseUrl = config('services.supabase.url');
+        $supabaseKey = config('services.supabase.key');
+
+        $folders = $this->fetchFolders();
+
+        // Default ke folder user pertama jika tidak ada query ?folder=...
+        $defaultFolder = !empty($folders[0]['title']) ? $folders[0]['title'] : 'all';
+        $folderName = $request->query('folder', $defaultFolder);
+
+        $screenshots = [];
+        $activeWindows = [];
+
+        try {
+            $queryParams = [
+                'select' => '*',
+                'order'  => 'id.desc',
+            ];
+
+            // Filter per user: jika bukan 'all', hanya ambil screenshot milik user_name tersebut
+            if ($folderName !== 'all' && $folderName !== 'hasil_ss') {
+                $queryParams['user_name'] = 'eq.' . $folderName;
+            }
+
+            $response = Http::withHeaders([
+                'apikey'        => $supabaseKey,
+                'Authorization' => 'Bearer ' . $supabaseKey,
+            ])
+            ->timeout(8)
+            ->get(rtrim($supabaseUrl, '/') . '/hasil_ss', $queryParams);
+
+            if ($response->successful()) {
+                $screenshots = $response->json();
+
+                // Kumpulkan daftar unique active window untuk filter
+                $activeWindows = collect($screenshots)
+                    ->pluck('active_window')
+                    ->filter(fn ($w) => !empty(trim((string) $w)))
+                    ->map(fn ($w) => trim((string) $w))
+                    ->unique()
+                    ->values()
+                    ->take(12)
+                    ->all();
+            } else {
+                Log::warning('Supabase hasil_ss fetch failed: ' . $response->status() . ' - ' . $response->body());
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Gagal mengambil data dari Supabase hasil_ss: ' . $e->getMessage());
+        }
+
+        return view('folders', compact('screenshots', 'folderName', 'folders', 'activeWindows'));
+    }
+
+    /**
+     * Helper untuk mengambil data folders dari user_responses dan menghitung jumlah screenshot per user.
+     */
+    protected function fetchFolders(): array
+    {
         $supabaseUrl = config('services.supabase.url');
         $supabaseKey = config('services.supabase.key');
 
         $folders = [];
 
         try {
+            // 1. Ambil data users dari user_responses
             $response = Http::withHeaders([
                 'apikey'        => $supabaseKey,
                 'Authorization' => 'Bearer ' . $supabaseKey,
@@ -26,8 +94,30 @@ class DashboardController extends Controller
             ->timeout(6)
             ->get(rtrim($supabaseUrl, '/') . '/user_responses', [
                 'select' => '*',
-                'order'  => 'id.asc',
+                'order'  => 'id.desc',
             ]);
+
+            // 2. Hitung jumlah screenshot per user_name dari hasil_ss
+            $ssCounts = [];
+            try {
+                $ssCountRes = Http::withHeaders([
+                    'apikey'        => $supabaseKey,
+                    'Authorization' => 'Bearer ' . $supabaseKey,
+                ])
+                ->timeout(5)
+                ->get(rtrim($supabaseUrl, '/') . '/hasil_ss', [
+                    'select' => 'user_name',
+                ]);
+
+                if ($ssCountRes->successful()) {
+                    $ssCounts = collect($ssCountRes->json())
+                        ->groupBy('user_name')
+                        ->map(fn ($group) => $group->count())
+                        ->all();
+                }
+            } catch (\Throwable $e) {
+                // Ignore count error
+            }
 
             if ($response->successful()) {
                 $rows = $response->json();
@@ -42,32 +132,37 @@ class DashboardController extends Controller
                 ];
 
                 if (!empty($rows)) {
-                    $folders = collect($rows)->map(function ($row, $index) use ($themes, $avatarPresets) {
+                    // Kelompokkan nama user agar unik (jika user input form lebih dari sekali)
+                    $uniqueUsers = collect($rows)->unique('nama')->values();
+
+                    $folders = $uniqueUsers->map(function ($row, $index) use ($themes, $avatarPresets, $ssCounts) {
                         $theme = $themes[$index % count($themes)];
                         $avatars = $avatarPresets[$index % count($avatarPresets)];
                         $title = !empty($row['nama']) ? $row['nama'] : 'Folder ' . ($index + 1);
+                        
+                        // Hitung jumlah tangkapan layar riil milik user ini
+                        $itemsCount = $ssCounts[$title] ?? 0;
 
                         return [
-                            'id'      => 'folder-' . ($row['id'] ?? $index),
-                            'db_id'   => $row['id'] ?? null,
-                            'title'   => $title,
-                            'items'   => 1,
-                            'theme'   => $theme,
-                            'avatars' => $avatars,
-                            'extra'   => 0,
-                            'status'  => $row['status'] ?? 'Active',
-                            'date'    => $row['tanggal_date'] ?? null,
+                            'id'         => 'folder-' . ($row['id'] ?? $index),
+                            'db_id'      => $row['id'] ?? null,
+                            'title'      => $title,
+                            'items'      => $itemsCount,
+                            'theme'      => $theme,
+                            'avatars'    => $avatars,
+                            'extra'      => 0,
+                            'status'     => $row['status'] ?? 'Active',
+                            'date'       => $row['tanggal_date'] ?? null,
+                            'created_at' => $row['created_at'] ?? null,
                         ];
                     })->all();
                 }
-            } else {
-                Log::warning('Supabase response error: ' . $response->status() . ' - ' . $response->body());
             }
         } catch (\Throwable $e) {
             Log::warning('Gagal koneksi ke Supabase user_responses: ' . $e->getMessage());
         }
 
-        // Fallback default jika database kosong atau koneksi error
+        // Fallback default jika database kosong atau error
         if (empty($folders)) {
             $folders = [
                 [
@@ -97,7 +192,7 @@ class DashboardController extends Controller
             ];
         }
 
-        return view('dashboard', compact('folders'));
+        return $folders;
     }
 
     /**

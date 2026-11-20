@@ -181,12 +181,37 @@
             transform-origin: top right;
             transition: opacity 0.15s ease, transform 0.15s ease;
         }
+
+        /* Realtime Animations */
+        @keyframes pulseHighlight {
+            0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(59, 183, 126, 0)); }
+            50% { transform: scale(1.02); filter: drop-shadow(0 0 14px rgba(59, 183, 126, 0.45)); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(59, 183, 126, 0)); }
+        }
+
+        .new-folder-enter {
+            animation: folderEntrance 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes folderEntrance {
+            0% { opacity: 0; transform: translateY(14px) scale(0.95); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .counter-pulse {
+            animation: counterGlow 1.2s ease-out;
+        }
+
+        @keyframes counterGlow {
+            0% { color: #3BB77E; font-weight: 700; transform: scale(1.15); }
+            100% { color: #7A7E87; font-weight: 400; transform: scale(1); }
+        }
     </style>
 @endpush
 
 @section('content')
     {{-- =====================================================================
-         TOP BAR DASHBOARD (Search ⌘ F & Credits remaining)
+         TOP BAR DASHBOARD (Search ⌘ F & Credits remaining & Live Realtime)
          ===================================================================== --}}
     <header class="flex items-center justify-between gap-4 px-5 sm:px-8 h-[68px] border-b border-[#F0F1F3] shrink-0">
         <div class="flex items-center gap-3 flex-1 max-w-[380px]">
@@ -224,12 +249,20 @@
             </label>
         </div>
 
-        {{-- Indikator Credits Remaining --}}
-        <div class="flex items-center gap-2 text-[13px] text-[#6F767E] shrink-0">
-            <span class="hidden sm:inline">Credits remaining</span>
-            <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-[#F4F5F7] text-[#1A1D1F] font-semibold text-[12px] tabular-nums">
-                {{ $creditsRemaining }}
+        {{-- Indikator Realtime & Credits Remaining --}}
+        <div class="flex items-center gap-3 shrink-0">
+            <span id="dashboard-realtime-pill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF6FE] text-[#2B78C5] text-[12px] font-semibold transition-all">
+                <span class="w-2 h-2 rounded-full bg-[#3BB77E] animate-pulse"></span>
+                <span class="hidden sm:inline">Live Realtime</span>
+                <span class="sm:hidden">Live</span>
             </span>
+
+            <div class="flex items-center gap-2 text-[13px] text-[#6F767E]">
+                <span class="hidden sm:inline">Credits remaining</span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-[#F4F5F7] text-[#1A1D1F] font-semibold text-[12px] tabular-nums">
+                    {{ $creditsRemaining }}
+                </span>
+            </div>
         </div>
     </header>
 
@@ -375,16 +408,19 @@
 
             <div id="folders-content" class="collapsible-section is-expanded">
                 <div class="collapsible-inner">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_110px] gap-4 pb-1">
+                    <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_110px] gap-4 pb-1">
                 @foreach ($folders as $folder)
                     @php
                         $t = $folderThemes[$folder['theme']];
                     @endphp
 
-                    <article
-                        class="folder-card relative pt-[16px] cursor-pointer select-none"
+                    <a
+                        href="{{ route('folders.index', ['folder' => $folder['title']]) }}"
+                        class="folder-card block relative pt-[16px] cursor-pointer select-none text-inherit no-underline"
                         data-searchable="folder"
                         data-title="{{ strtolower($folder['title']) }}"
+                        data-user="{{ strtolower($folder['title']) }}"
+                        data-url="{{ route('folders.index', ['folder' => $folder['title']]) }}"
                     >
                         {{-- Lapisan Belakang Folder --}}
                         <div class="absolute top-0 left-[6px] w-[39%] h-[28px] rounded-t-[13px]" style="background-color: {{ $t['back'] }};"></div>
@@ -415,6 +451,7 @@
                                     class="card-action-btn inline-flex items-center justify-center w-[30px] h-[22px] rounded-full bg-white/45 hover:bg-white/85 border border-black/[0.06] text-[#525866] transition-colors"
                                     data-action-label="Opsi folder {{ $folder['title'] }}"
                                     aria-label="Opsi folder {{ $folder['title'] }}"
+                                    onclick="event.preventDefault(); event.stopPropagation();"
                                 >
                                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                                         <circle cx="12" cy="6" r="1.7"/>
@@ -457,12 +494,12 @@
                                     @endif
                                 </div>
 
-                                <span class="text-[12.5px] text-[#7A7E87] font-normal">
+                                <span class="folder-items-count text-[12.5px] text-[#7A7E87] font-normal transition-colors" data-user="{{ strtolower($folder['title']) }}">
                                     {{ $folder['items'] }} items
                                 </span>
                             </div>
                         </div>
-                    </article>
+                    </a>
                 @endforeach
 
                 {{-- Slot Garis Putus-Putus Tambah Folder Baru --}}
@@ -787,7 +824,7 @@
                                 </div>
                             </div>
                         </div>
-                    </article>
+                    </a>
                 @endforeach
             </div>
 
@@ -807,12 +844,24 @@
         document.addEventListener('DOMContentLoaded', () => {
             try {
                 const searchInput = document.getElementById('workflow-search-input');
-                const folderCards = document.querySelectorAll('[data-searchable="folder"]');
-                const workflowCards = document.querySelectorAll('[data-searchable="workflow"]');
+                const foldersGrid = document.getElementById('folders-grid');
                 const foldersCountEl = document.getElementById('folders-count');
                 const workflowsCountEl = document.getElementById('workflows-count');
                 const emptyStateEl = document.getElementById('workflows-empty-state');
                 const dropdowns = document.querySelectorAll('.filter-dropdown');
+                const realtimePill = document.getElementById('dashboard-realtime-pill');
+
+                const folderThemes = @json($folderThemes);
+                const avatarProfiles = @json($avatarProfiles);
+                const themeKeys = ['lavender', 'sky', 'peach'];
+                const avatarPresetKeys = [
+                    ['alex'],
+                    ['elena', 'marcus'],
+                    ['alex', 'sara', 'marcus'],
+                    ['sara'],
+                    ['alex', 'elena'],
+                    ['marcus']
+                ];
 
                 const activeFilters = {
                     query: '',
@@ -822,18 +871,30 @@
                     tag: 'all',
                 };
 
+                // Notifikasi Toast Elegan
                 const notify = (msg) => {
-                    if (typeof window.showAppToast === 'function') {
-                        window.showAppToast(msg);
+                    let box = document.getElementById('app-toast');
+                    if (!box) {
+                        box = document.createElement('div');
+                        box.id = 'app-toast';
+                        box.className = 'fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl bg-[#1A1D1F] text-white text-[13px] shadow-xl border border-white/10 transition-all duration-200 opacity-0 translate-y-2 pointer-events-none';
+                        document.body.appendChild(box);
                     }
+                    box.textContent = msg;
+                    box.classList.remove('opacity-0', 'translate-y-2');
+                    clearTimeout(box._timer);
+                    box._timer = setTimeout(() => {
+                        box.classList.add('opacity-0', 'translate-y-2');
+                    }, 3000);
                 };
 
-                // Filter Folders & Workflows secara real-time
+                // Filter Folders & Workflows secara dinamis
                 const applyDashboardFilters = () => {
                     const q = activeFilters.query.trim().toLowerCase();
 
                     let visibleFolders = 0;
-                    folderCards.forEach((card) => {
+                    const currentFolderCards = document.querySelectorAll('[data-searchable="folder"]');
+                    currentFolderCards.forEach((card) => {
                         const match = !q || (card.dataset.title || '').includes(q);
                         card.classList.toggle('hidden', !match);
                         if (match) visibleFolders++;
@@ -841,6 +902,7 @@
                     if (foldersCountEl) foldersCountEl.textContent = String(visibleFolders);
 
                     let visibleWorkflows = 0;
+                    const workflowCards = document.querySelectorAll('[data-searchable="workflow"]');
                     workflowCards.forEach((card) => {
                         const title = card.dataset.title || '';
                         const status = card.dataset.status || '';
@@ -940,7 +1002,16 @@
                     });
                 }
 
-                // Aksi Tombol ⋮ dan "+ New Folder"
+                // Handler klik kartu folder statis awal
+                document.querySelectorAll('.folder-card').forEach((card) => {
+                    card.addEventListener('click', (e) => {
+                        if (e.target.closest('.card-action-btn')) return;
+                        const url = card.dataset.url;
+                        if (url) window.location.href = url;
+                    });
+                });
+
+                // Aksi Tombol ⋮ Opsi Folder
                 document.querySelectorAll('.card-action-btn').forEach((btn) => {
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -948,6 +1019,7 @@
                     });
                 });
 
+                // Tombol "+ New Folder"
                 const newFolderBtn = document.getElementById('new-folder-btn');
                 if (newFolderBtn) {
                     newFolderBtn.addEventListener('click', async () => {
@@ -970,7 +1042,7 @@
                             const data = await res.json();
                             if (res.ok && data.success) {
                                 notify('Folder "' + folderName.trim() + '" berhasil disimpan ke Supabase!');
-                                setTimeout(() => window.location.reload(), 700);
+                                insertNewFolderCard(folderName.trim(), 0);
                             } else {
                                 notify('Gagal: ' + (data.message || 'Terjadi kesalahan'));
                             }
@@ -991,6 +1063,255 @@
                         searchInput.select();
                     }
                 });
+
+                // =================================================================
+                // REALTIME DASHBOARD HANDLERS (Supabase WebSocket + Polling)
+                // =================================================================
+
+                // Generator Elemen DOM Kartu Folder Pastel (Preserve Design 100%)
+                const createFolderElement = (title, itemsCount = 0, index = 0) => {
+                    const themeKey = themeKeys[index % themeKeys.length];
+                    const t = folderThemes[themeKey] || folderThemes['lavender'];
+                    const avKeys = avatarPresetKeys[index % avatarPresetKeys.length];
+                    const cleanTitle = title || `Folder ${index + 1}`;
+                    const userKey = cleanTitle.trim().toLowerCase();
+                    const folderUrl = `/folders?folder=${encodeURIComponent(cleanTitle)}`;
+
+                    let avatarHtml = '';
+                    avKeys.forEach(avKey => {
+                        const av = avatarProfiles[avKey] || avatarProfiles['alex'];
+                        const beardSvg = av.beard
+                            ? `<path d="M13 16.5C13.8 19.6 15.8 20.8 18 20.8C20.2 20.8 22.2 19.6 23 16.5C21.5 18 19.8 18.4 18 18.4C16.2 18.4 14.5 18 13 16.5Z" fill="${av.hair}" opacity="0.65"/>`
+                            : '';
+                        avatarHtml += `
+                            <span class="inline-flex w-[26px] h-[26px] rounded-full ring-2 ring-white/90 overflow-hidden">
+                                <svg viewBox="0 0 36 36" class="w-full h-full">
+                                    <rect width="36" height="36" fill="${av.bg}"/>
+                                    <circle cx="18" cy="14" r="6.5" fill="${av.skin}"/>
+                                    <path d="M11.5 13.5C11.5 9.2 14.4 6.5 18 6.5C21.6 6.5 24.5 9.2 24.5 13.5C23 11.2 20.8 10.3 18 10.3C15.2 10.3 13 11.2 11.5 13.5Z" fill="${av.hair}"/>
+                                    ${beardSvg}
+                                    <path d="M6 36C6.8 28.5 11.6 24.5 18 24.5C24.4 24.5 29.2 28.5 30 36H6Z" fill="${av.shirt}"/>
+                                </svg>
+                            </span>
+                        `;
+                    });
+
+                    const a = document.createElement('a');
+                    a.href = folderUrl;
+                    a.className = 'folder-card new-folder-enter block relative pt-[16px] cursor-pointer select-none text-inherit no-underline';
+                    a.dataset.searchable = 'folder';
+                    a.dataset.title = userKey;
+                    a.dataset.user = userKey;
+                    a.dataset.url = folderUrl;
+
+                    a.innerHTML = `
+                        <div class="absolute top-0 left-[6px] w-[39%] h-[28px] rounded-t-[13px]" style="background-color: ${t.back};"></div>
+                        <svg class="absolute top-0 left-[calc(39%+2px)] w-[28px] h-[22px]" viewBox="0 0 28 22" fill="none" aria-hidden="true">
+                            <path d="M0 0C7 0 11 10 20 14H28V22H0V0Z" fill="${t.back}"/>
+                        </svg>
+                        <div class="absolute top-[13px] left-[2px] right-[2px] h-[26px] rounded-t-[14px]" style="background-color: ${t.back};"></div>
+
+                        <div
+                            class="relative rounded-[18px] rounded-tl-[14px] px-5 pt-4 pb-4 min-h-[126px] flex flex-col justify-between shadow-[0_6px_18px_-8px_rgba(16,24,40,0.09)] border"
+                            style="background: linear-gradient(180deg, ${t.frontTop} 0%, ${t.frontBot} 100%); border-color: ${t.border};"
+                        >
+                            <div
+                                class="absolute -top-[10px] -left-[1px] w-[36%] h-[12px] rounded-tl-[13px] rounded-tr-[10px] border-t border-l"
+                                style="background-color: ${t.frontTop}; border-color: ${t.border};"
+                            ></div>
+                            <svg class="absolute -top-[10px] left-[calc(36%-4px)] w-[22px] h-[12px]" viewBox="0 0 22 12" fill="none" aria-hidden="true">
+                                <path d="M0 0.5C6 0.5 10 10.5 18 10.5H22V12H0V0.5Z" fill="${t.frontTop}"/>
+                                <path d="M0 0.5C6 0.5 10 10.5 18 10.5H22" stroke="${t.border}" stroke-width="1"/>
+                            </svg>
+
+                            <div class="flex justify-end">
+                                <button
+                                    type="button"
+                                    class="card-action-btn inline-flex items-center justify-center w-[30px] h-[22px] rounded-full bg-white/45 hover:bg-white/85 border border-black/[0.06] text-[#525866] transition-colors"
+                                    data-action-label="Opsi folder ${cleanTitle}"
+                                    aria-label="Opsi folder ${cleanTitle}"
+                                    onclick="event.preventDefault(); event.stopPropagation();"
+                                >
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                        <circle cx="12" cy="6" r="1.7"/>
+                                        <circle cx="12" cy="12" r="1.7"/>
+                                        <circle cx="12" cy="18" r="1.7"/>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <h3 class="font-mono text-[14.5px] font-medium text-[#1A1D1F] tracking-[-0.02em] mt-1 mb-4 truncate">
+                                ${cleanTitle}
+                            </h3>
+
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center -space-x-2">
+                                    ${avatarHtml}
+                                </div>
+
+                                <span class="folder-items-count text-[12.5px] text-[#7A7E87] font-normal transition-colors" data-user="${userKey}">
+                                    ${itemsCount} items
+                                </span>
+                            </div>
+                        </div>
+                    `;
+
+                    // Pasang event klik
+                    a.addEventListener('click', (e) => {
+                        if (e.target.closest('.card-action-btn')) return;
+                        window.location.href = folderUrl;
+                    });
+
+                    const actionBtn = a.querySelector('.card-action-btn');
+                    if (actionBtn) {
+                        actionBtn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            notify(actionBtn.dataset.actionLabel || 'Menu opsi dibuka');
+                        });
+                    }
+
+                    return a;
+                };
+
+                // Sisipkan Kartu Folder Baru ke DOM
+                const insertNewFolderCard = (nama, itemsCount = 0) => {
+                    if (!nama || !nama.trim()) return;
+                    const userKey = nama.trim().toLowerCase();
+                    if (document.querySelector(`.folder-card[data-user="${userKey}"]`)) return;
+
+                    if (!foldersGrid || !newFolderBtn) return;
+
+                    const existingCards = foldersGrid.querySelectorAll('.folder-card');
+                    const newCard = createFolderElement(nama.trim(), itemsCount, existingCards.length);
+
+                    foldersGrid.insertBefore(newCard, newFolderBtn);
+
+                    // Update badge total folder
+                    if (foldersCountEl) {
+                        const curCount = parseInt(foldersCountEl.textContent) || existingCards.length;
+                        foldersCountEl.textContent = String(curCount + 1);
+                    }
+
+                    notify(`📁 Folder baru "${nama.trim()}" ditambahkan secara realtime!`);
+                };
+
+                // Handler Tangkapan Layar Baru (Update Jumlah Screenshot per Folder)
+                const handleNewScreenshot = (ss) => {
+                    if (!ss) return;
+                    const userName = (ss.user_name || '').trim();
+                    if (!userName) return;
+                    const userKey = userName.toLowerCase();
+
+                    let counterEl = document.querySelector(`.folder-items-count[data-user="${userKey}"]`);
+                    if (!counterEl) {
+                        // Jika folder belum ada di dashboard, buat baru dengan 1 item
+                        insertNewFolderCard(userName, 1);
+                        return;
+                    }
+
+                    const currentCount = parseInt(counterEl.textContent) || 0;
+                    const nextCount = currentCount + 1;
+                    counterEl.textContent = `${nextCount} items`;
+
+                    counterEl.classList.remove('counter-pulse');
+                    void counterEl.offsetWidth;
+                    counterEl.classList.add('counter-pulse');
+
+                    const card = counterEl.closest('.folder-card');
+                    if (card) {
+                        card.style.animation = 'none';
+                        void card.offsetWidth;
+                        card.style.animation = 'pulseHighlight 1s ease-out';
+                    }
+
+                    notify(`📸 Screenshot baru diterima untuk folder "${userName}" (${nextCount} items)`);
+                };
+
+                // Inisialisasi Supabase Realtime Channels
+                if (window.supabase) {
+                    // 1. Channel Realtime untuk user_responses (auto-add folder)
+                    const channelUsers = window.supabase
+                        .channel('dashboard_user_responses')
+                        .on('postgres_changes', {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'user_responses'
+                        }, (payload) => {
+                            console.log('Realtime new user_response on dashboard:', payload.new);
+                            if (payload.new && payload.new.nama) {
+                                insertNewFolderCard(payload.new.nama, 0);
+                            }
+                        })
+                        .subscribe((status) => {
+                            if (realtimePill && status === 'SUBSCRIBED') {
+                                realtimePill.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF6FE] text-[#2B78C5] text-[12px] font-semibold transition-all';
+                            }
+                        });
+
+                    // 2. Channel Realtime untuk hasil_ss (auto-increment count)
+                    const channelSS = window.supabase
+                        .channel('dashboard_hasil_ss')
+                        .on('postgres_changes', {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'hasil_ss'
+                        }, (payload) => {
+                            console.log('Realtime new hasil_ss on dashboard:', payload.new);
+                            handleNewScreenshot(payload.new);
+                        })
+                        .subscribe((status) => {
+                            console.log('Realtime dashboard_hasil_ss status:', status);
+                        });
+
+                    // 3. Polling Cadangan (setiap 4 detik) untuk menjaga 100% konsistensi
+                    setInterval(async () => {
+                        try {
+                            // Cek user baru yang belum ada di DOM
+                            const { data: users, error: uErr } = await window.supabase
+                                .from('user_responses')
+                                .select('*')
+                                .order('id', { ascending: true });
+
+                            if (!uErr && Array.isArray(users)) {
+                                users.forEach(u => {
+                                    if (u.nama) {
+                                        const k = u.nama.trim().toLowerCase();
+                                        if (!document.querySelector(`.folder-card[data-user="${k}"]`)) {
+                                            insertNewFolderCard(u.nama, 0);
+                                        }
+                                    }
+                                });
+                            }
+
+                            // Cek jumlah screenshot per user_name
+                            const { data: ssList, error: sErr } = await window.supabase
+                                .from('hasil_ss')
+                                .select('user_name');
+
+                            if (!sErr && Array.isArray(ssList)) {
+                                const counts = {};
+                                ssList.forEach(s => {
+                                    const u = (s.user_name || '').trim().toLowerCase();
+                                    if (u) counts[u] = (counts[u] || 0) + 1;
+                                });
+
+                                Object.keys(counts).forEach(u => {
+                                    const el = document.querySelector(`.folder-items-count[data-user="${u}"]`);
+                                    if (el) {
+                                        const count = counts[u];
+                                        const text = `${count} items`;
+                                        if (el.textContent.trim() !== text) {
+                                            el.textContent = text;
+                                        }
+                                    }
+                                });
+                            }
+                        } catch (e) {
+                            // silent catch
+                        }
+                    }, 4000);
+                }
             } catch (error) {
                 console.error('Gagal menginisialisasi interaksi halaman dashboard:', error);
             }
