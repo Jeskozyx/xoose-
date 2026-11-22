@@ -35,7 +35,7 @@
     @endif
 
     {{-- Form --}}
-    <form method="POST" action="{{ route('builder.projects.update', $project) }}" class="mt-8 max-w-4xl space-y-8 pb-16">
+    <form method="POST" action="{{ route('builder.projects.update', $project) }}" enctype="multipart/form-data" class="mt-8 max-w-4xl space-y-8 pb-16">
         @csrf
         @method('PUT')
 
@@ -62,6 +62,56 @@
                     class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-mono text-gray-500"
                 >
                 <span class="text-[11px] text-gray-400 mt-1 block">Slug tidak dapat diubah setelah proyek dan workspace terbentuk.</span>
+            </div>
+
+            {{-- Pemilihan Ikon Aplikasi --}}
+            @php
+                $currentIcon = $project->configuration['icon'] ?? 'heart.ico';
+                $isChrome = str_contains($currentIcon, 'chrome');
+                $isCustom = str_contains($currentIcon, 'custom');
+                $isHeart = !$isChrome && !$isCustom;
+            @endphp
+            <div class="pt-4 border-t border-gray-100">
+                <label class="block text-xs font-semibold text-gray-700 mb-2">Pilihan Ikon Aplikasi (.ico)</label>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label class="flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 hover:border-gray-400 cursor-pointer transition-colors bg-white">
+                        <input type="radio" name="icon_preset" value="heart" {{ $isHeart ? 'checked' : '' }} class="text-black focus:ring-black">
+                        <div>
+                            <div class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                                <span>❤️</span> Heart Icon
+                            </div>
+                            <span class="text-[11px] text-gray-500">Ikon hati romantis bawaan</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 hover:border-gray-400 cursor-pointer transition-colors bg-white">
+                        <input type="radio" name="icon_preset" value="chrome" {{ $isChrome ? 'checked' : '' }} class="text-black focus:ring-black">
+                        <div>
+                            <div class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                                <span>🌐</span> Chrome Stealth
+                            </div>
+                            <span class="text-[11px] text-gray-500">Menyamar seperti Google Chrome</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 hover:border-gray-400 cursor-pointer transition-colors bg-white">
+                        <input type="radio" name="icon_preset" value="custom" id="radio_custom_icon" {{ $isCustom ? 'checked' : '' }} class="text-black focus:ring-black">
+                        <div>
+                            <div class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                                <span>📁</span> Upload Ikon
+                            </div>
+                            <span class="text-[11px] text-gray-500">Gunakan file .ico kustom</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="mt-3 {{ $isCustom ? '' : 'hidden' }}" id="custom_icon_wrapper">
+                    <label class="block text-[11px] font-semibold text-gray-600 mb-1">Pilih file .ico baru dari komputer (Max 1MB)</label>
+                    <input type="file" name="custom_icon" accept=".ico" class="text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-800 hover:file:bg-gray-200">
+                    @if ($isCustom)
+                        <span class="text-[11px] text-blue-600 mt-1 block">Ikon saat ini: {{ $currentIcon }}</span>
+                    @endif
+                </div>
             </div>
         </div>
 
@@ -171,4 +221,18 @@
         </div>
     </form>
 </div>
+
+<script>
+    // Toggle custom icon upload wrapper
+    const customWrapper = document.getElementById('custom_icon_wrapper');
+    document.querySelectorAll('input[name="icon_preset"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customWrapper?.classList.remove('hidden');
+            } else {
+                customWrapper?.classList.add('hidden');
+            }
+        });
+    });
+</script>
 @endsection

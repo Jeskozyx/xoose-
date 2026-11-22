@@ -164,7 +164,31 @@ class AppProjectController extends Controller
         $data['slug'] = $project->slug;
         $data['features'] = $features;
 
+        // Handle icon choice (preserve existing if not explicitly changed)
+        $iconPreset = $request->input('icon_preset');
+        $iconFile = $project->configuration['icon'] ?? 'heart.ico';
+        if ($iconPreset === 'chrome') {
+            $iconFile = 'chrome.ico';
+        } elseif ($iconPreset === 'heart') {
+            $iconFile = 'heart.ico';
+        }
+
+        // Handle custom icon upload if present on edit
+        if ($request->hasFile('custom_icon') && $request->file('custom_icon')->isValid()) {
+            $uploadedIcon = $request->file('custom_icon');
+            $customName = $project->slug . '-custom.ico';
+            $destDir = config('application-builder.paths.workspace') . '/' . $project->slug . '/backend/resources';
+            \Illuminate\Support\Facades\File::makeDirectory($destDir, 0755, true, true);
+            $uploadedIcon->move($destDir, $customName);
+            $iconFile = $customName;
+        }
+
+        $configData = $request->input('configuration', []);
+        $configData['icon'] = $iconFile;
+        $data['configuration'] = $configData;
+
         $validated = $this->manifestService->validateInput($data);
+        $validated['configuration']['icon'] = $iconFile;
 
         $nextRevNumber = ($project->revisions()->max('revision_number') ?? 0) + 1;
 
