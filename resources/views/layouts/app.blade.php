@@ -19,7 +19,23 @@
 <body class="h-full bg-[#FAFAFB] text-[#1A1D1F] font-sans antialiased">
     <div class="flex h-screen overflow-hidden bg-[#FAFAFB]">
         {{-- Sidebar Component --}}
-        <x-sidebar :active-key="$activeMenu ?? 'dashboard'" />
+        @php
+            $currentActiveMenu = $activeMenu ?? null;
+            if (!$currentActiveMenu) {
+                if (request()->routeIs('builder.*') || request()->is('builder*')) {
+                    $currentActiveMenu = 'builder';
+                } elseif (request()->routeIs('folders.*') || request()->is('folders*')) {
+                    $currentActiveMenu = 'folders';
+                } elseif (request()->routeIs('dashboard') || request()->is('/') || request()->is('dashboard')) {
+                    $currentActiveMenu = 'dashboard';
+                } elseif (request()->has('menu')) {
+                    $currentActiveMenu = request()->query('menu');
+                } else {
+                    $currentActiveMenu = 'dashboard';
+                }
+            }
+        @endphp
+        <x-sidebar :active-key="$currentActiveMenu" />
 
         {{-- Main Content --}}
         <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white">

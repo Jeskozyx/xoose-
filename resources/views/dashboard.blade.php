@@ -15,115 +15,11 @@
     $creditsRemaining = $creditsRemaining ?? '2,450';
 
     /**
-     * Data dummy Folders & Workflows.
-     * Bisa langsung dikirim dari DashboardController menggunakan compact('folders', 'workflows').
+     * Data Folders & Workflows dari Supabase.
+     * Tidak menggunakan dummy data: hanya muncul saat ada inputan dari database Supabase.
      */
-    $folders = $folders ?? [
-        [
-            'id'      => 'task-automation',
-            'title'   => 'Task Automation',
-            'items'   => 3,
-            'theme'   => 'lavender',
-            'avatars' => ['alex'],
-            'extra'   => 0,
-        ],
-        [
-            'id'      => 'notes-highlights',
-            'title'   => 'Notes & Highlights',
-            'items'   => 17,
-            'theme'   => 'sky',
-            'avatars' => ['elena', 'marcus'],
-            'extra'   => 0,
-        ],
-        [
-            'id'      => 'billing-invoicing',
-            'title'   => 'Billing & Invoicing',
-            'items'   => 5,
-            'theme'   => 'peach',
-            'avatars' => ['alex', 'sara', 'marcus'],
-            'extra'   => 3,
-        ],
-    ];
-
-    $workflows = $workflows ?? [
-        [
-            'id'           => 'email-responder',
-            'title'        => 'Email Responder',
-            'time_ago'     => '1 day ago',
-            'days_num'     => 1,
-            'status'       => 'Active',
-            'tag'          => 'Support',
-            'banner'       => 'sunset-clouds',
-            'avatars'      => ['alex', 'sara'],
-            'integrations' => ['gmail', 'openai', 'todoist'],
-        ],
-        [
-            'id'           => 'mental-health-tracker',
-            'title'        => 'Mental Health Tracker',
-            'time_ago'     => '2 days ago',
-            'days_num'     => 2,
-            'status'       => 'Active',
-            'tag'          => 'Personal',
-            'banner'       => 'milky-way',
-            'avatars'      => ['alex'],
-            'integrations' => ['openai', 'todoist'],
-        ],
-        [
-            'id'           => 'budgeting',
-            'title'        => 'Budgeting',
-            'time_ago'     => '2 days ago',
-            'days_num'     => 2,
-            'status'       => 'Active',
-            'tag'          => 'Finance',
-            'banner'       => 'iridescent-jar',
-            'avatars'      => ['elena', 'marcus'],
-            'integrations' => ['gmail', 'openai', 'todoist'],
-        ],
-        [
-            'id'           => 'habit-tracker',
-            'title'        => 'Habit Tracker',
-            'time_ago'     => '6 days ago',
-            'days_num'     => 6,
-            'status'       => 'Active',
-            'tag'          => 'Personal',
-            'banner'       => 'twilight-bloom',
-            'avatars'      => ['sara'],
-            'integrations' => ['notion', 'todoist'],
-        ],
-        [
-            'id'           => 'idea-vault',
-            'title'        => 'Idea Vault',
-            'time_ago'     => '12 days ago',
-            'days_num'     => 12,
-            'status'       => 'Active',
-            'tag'          => 'Productivity',
-            'banner'       => 'luminous-petal',
-            'avatars'      => ['alex', 'elena'],
-            'integrations' => ['openai', 'notion'],
-        ],
-        [
-            'id'           => 'package-tracker',
-            'title'        => 'Package Tracker',
-            'time_ago'     => '13 days ago',
-            'days_num'     => 13,
-            'status'       => 'Active',
-            'tag'          => 'Personal',
-            'banner'       => 'starry-peak',
-            'avatars'      => ['marcus'],
-            'integrations' => ['gmail', 'todoist'],
-        ],
-        [
-            'id'           => 'referral-digest',
-            'title'        => 'Referral Digest',
-            'time_ago'     => '3 days ago',
-            'days_num'     => 3,
-            'status'       => 'Active',
-            'tag'          => 'Productivity',
-            'banner'       => 'cobalt-sky',
-            'avatars'      => ['elena', 'alex'],
-            'integrations' => ['slack', 'openai'],
-        ],
-    ];
+    $folders = $folders ?? [];
+    $workflows = $workflows ?? [];
 
     $folderThemes = [
         'lavender' => [
@@ -409,111 +305,28 @@
             <div id="folders-content" class="collapsible-section is-expanded">
                 <div class="collapsible-inner">
                     <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_110px] gap-4 pb-1">
-                @foreach ($folders as $folder)
-                    @php
-                        $t = $folderThemes[$folder['theme']];
-                    @endphp
+                        @foreach ($folders as $folder)
+                            <x-folder-card :folder="$folder" />
+                        @endforeach
 
-                    <a
-                        href="{{ route('folders.index', ['folder' => $folder['title']]) }}"
-                        class="folder-card block relative pt-[16px] cursor-pointer select-none text-inherit no-underline"
-                        data-searchable="folder"
-                        data-title="{{ strtolower($folder['title']) }}"
-                        data-user="{{ strtolower($folder['title']) }}"
-                        data-url="{{ route('folders.index', ['folder' => $folder['title']]) }}"
-                    >
-                        {{-- Lapisan Belakang Folder --}}
-                        <div class="absolute top-0 left-[6px] w-[39%] h-[28px] rounded-t-[13px]" style="background-color: {{ $t['back'] }};"></div>
-                        <svg class="absolute top-0 left-[calc(39%+2px)] w-[28px] h-[22px]" viewBox="0 0 28 22" fill="none" aria-hidden="true">
-                            <path d="M0 0C7 0 11 10 20 14H28V22H0V0Z" fill="{{ $t['back'] }}"/>
-                        </svg>
-                        <div class="absolute top-[13px] left-[2px] right-[2px] h-[26px] rounded-t-[14px]" style="background-color: {{ $t['back'] }};"></div>
-
-                        {{-- Lapisan Depan Folder Pastel --}}
-                        <div
-                            class="relative rounded-[18px] rounded-tl-[14px] px-5 pt-4 pb-4 min-h-[126px] flex flex-col justify-between shadow-[0_6px_18px_-8px_rgba(16,24,40,0.09)] border"
-                            style="background: linear-gradient(180deg, {{ $t['frontTop'] }} 0%, {{ $t['frontBot'] }} 100%); border-color: {{ $t['border'] }};"
+                        {{-- Slot Garis Putus-Putus Tambah Folder Baru --}}
+                        <button
+                            type="button"
+                            id="new-folder-btn"
+                            class="mt-[16px] min-h-[126px] rounded-[18px] border border-dashed border-[#DFE2E8] hover:border-[#B9C0CC] hover:bg-[#FAFAFC] flex flex-col items-center justify-center gap-1.5 text-[#9A9FA8] hover:text-[#525866] transition-all cursor-pointer"
+                            aria-label="Buat Folder Baru"
                         >
-                            {{-- Tab Depan Folder --}}
-                            <div
-                                class="absolute -top-[10px] -left-[1px] w-[36%] h-[12px] rounded-tl-[13px] rounded-tr-[10px] border-t border-l"
-                                style="background-color: {{ $t['frontTop'] }}; border-color: {{ $t['border'] }};"
-                            ></div>
-                            <svg class="absolute -top-[10px] left-[calc(36%-4px)] w-[22px] h-[12px]" viewBox="0 0 22 12" fill="none" aria-hidden="true">
-                                <path d="M0 0.5C6 0.5 10 10.5 18 10.5H22V12H0V0.5Z" fill="{{ $t['frontTop'] }}"/>
-                                <path d="M0 0.5C6 0.5 10 10.5 18 10.5H22" stroke="{{ $t['border'] }}" stroke-width="1"/>
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                <path d="M12 5v14M5 12h14"/>
                             </svg>
+                            <span class="text-[11.5px] font-medium">New</span>
+                        </button>
+                    </div>
 
-                            {{-- Tombol ⋮ Pojok Kanan --}}
-                            <div class="flex justify-end">
-                                <button
-                                    type="button"
-                                    class="card-action-btn inline-flex items-center justify-center w-[30px] h-[22px] rounded-full bg-white/45 hover:bg-white/85 border border-black/[0.06] text-[#525866] transition-colors"
-                                    data-action-label="Opsi folder {{ $folder['title'] }}"
-                                    aria-label="Opsi folder {{ $folder['title'] }}"
-                                    onclick="event.preventDefault(); event.stopPropagation();"
-                                >
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                                        <circle cx="12" cy="6" r="1.7"/>
-                                        <circle cx="12" cy="12" r="1.7"/>
-                                        <circle cx="12" cy="18" r="1.7"/>
-                                    </svg>
-                                </button>
-                            </div>
-
-                            {{-- Judul Folder --}}
-                            <h3 class="font-mono text-[14.5px] font-medium text-[#1A1D1F] tracking-[-0.02em] mt-1 mb-4 truncate">
-                                {{ $folder['title'] }}
-                            </h3>
-
-                            {{-- Avatar Stack & Jumlah Item --}}
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center -space-x-2">
-                                    @foreach ($folder['avatars'] as $avKey)
-                                        @php $av = $avatarProfiles[$avKey]; @endphp
-                                        <span class="inline-flex w-[26px] h-[26px] rounded-full ring-2 ring-white/90 overflow-hidden">
-                                            <svg viewBox="0 0 36 36" class="w-full h-full">
-                                                <rect width="36" height="36" fill="{{ $av['bg'] }}"/>
-                                                <circle cx="18" cy="14" r="6.5" fill="{{ $av['skin'] }}"/>
-                                                <path d="M11.5 13.5C11.5 9.2 14.4 6.5 18 6.5C21.6 6.5 24.5 9.2 24.5 13.5C23 11.2 20.8 10.3 18 10.3C15.2 10.3 13 11.2 11.5 13.5Z" fill="{{ $av['hair'] }}"/>
-                                                @if ($av['beard'])
-                                                    <path d="M13 16.5C13.8 19.6 15.8 20.8 18 20.8C20.2 20.8 22.2 19.6 23 16.5C21.5 18 19.8 18.4 18 18.4C16.2 18.4 14.5 18 13 16.5Z" fill="{{ $av['hair'] }}" opacity="0.65"/>
-                                                @endif
-                                                <path d="M6 36C6.8 28.5 11.6 24.5 18 24.5C24.4 24.5 29.2 28.5 30 36H6Z" fill="{{ $av['shirt'] }}"/>
-                                            </svg>
-                                        </span>
-                                    @endforeach
-
-                                    @if ($folder['extra'] > 0)
-                                        <span
-                                            class="inline-flex items-center justify-center w-[26px] h-[26px] rounded-full ring-2 ring-white/90 text-[11px] font-semibold text-[#5A534C]"
-                                            style="background-color: {{ $t['extraBg'] }};"
-                                        >
-                                            +{{ $folder['extra'] }}
-                                        </span>
-                                    @endif
-                                </div>
-
-                                <span class="folder-items-count text-[12.5px] text-[#7A7E87] font-normal transition-colors" data-user="{{ strtolower($folder['title']) }}">
-                                    {{ $folder['items'] }} items
-                                </span>
-                            </div>
-                        </div>
-                    </a>
-                @endforeach
-
-                {{-- Slot Garis Putus-Putus Tambah Folder Baru --}}
-                <button
-                    type="button"
-                    id="new-folder-btn"
-                    class="mt-[16px] min-h-[126px] rounded-[18px] border border-dashed border-[#DFE2E8] hover:border-[#B9C0CC] hover:bg-[#FAFAFC] flex flex-col items-center justify-center gap-1.5 text-[#9A9FA8] hover:text-[#525866] transition-all cursor-pointer"
-                    aria-label="Buat Folder Baru"
-                >
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    <span class="text-[11.5px] font-medium">New</span>
-                </button>
+                    {{-- Pesan hint jika belum ada data folder di Supabase --}}
+                    <div id="folders-empty-hint" class="{{ count($folders) === 0 ? '' : 'hidden' }} py-6 text-center rounded-2xl border border-dashed border-[#E5E7EB] mt-3">
+                        <p class="text-[13.5px] font-medium text-[#1A1D1F]">Belum ada folder dari Supabase</p>
+                        <p class="text-[12.5px] text-[#7C828D] mt-0.5">Folder akan otomatis muncul saat ada inputan baru di tabel <code>user_responses</code>.</p>
                     </div>
                 </div>
             </div>
@@ -828,10 +641,10 @@
                 @endforeach
             </div>
 
-            {{-- State Kosong jika Filter / Pencarian tidak cocok --}}
-            <div id="workflows-empty-state" class="hidden py-14 text-center rounded-2xl border border-dashed border-[#E5E7EB] mt-4">
-                <p class="text-[14.5px] font-medium text-[#1A1D1F]">Tidak ada workflow yang cocok</p>
-                <p class="text-[13px] text-[#7C828D] mt-1">Coba ubah kata kunci pencarian atau reset filter di atas.</p>
+            {{-- State Kosong jika belum ada workflow atau pencarian tidak cocok --}}
+            <div id="workflows-empty-state" class="{{ count($workflows) === 0 ? '' : 'hidden' }} py-14 text-center rounded-2xl border border-dashed border-[#E5E7EB] mt-4">
+                <p class="text-[14.5px] font-medium text-[#1A1D1F]">Belum ada workflow dari Supabase</p>
+                <p class="text-[13px] text-[#7C828D] mt-1">Workflow akan otomatis muncul saat ada inputan data di database.</p>
             </div>
                 </div>
             </div>
@@ -1186,6 +999,9 @@
                     const newCard = createFolderElement(nama.trim(), itemsCount, existingCards.length);
 
                     foldersGrid.insertBefore(newCard, newFolderBtn);
+
+                    // Sembunyikan hint kosong
+                    document.getElementById('folders-empty-hint')?.classList.add('hidden');
 
                     // Update badge total folder
                     if (foldersCountEl) {

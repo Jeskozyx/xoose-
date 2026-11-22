@@ -162,6 +162,20 @@
                 </div>
             </div>
 
+            {{-- Tombol Bersihkan Resource Supabase --}}
+            <button
+                type="button"
+                onclick="openCleanupModal('{{ $folderName !== 'all' ? $folderName : '' }}')"
+                class="inline-flex items-center gap-1.5 h-[34px] px-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition-colors cursor-pointer"
+                title="Kelola & Bersihkan Data Supabase untuk menghemat sumber daya"
+            >
+                <svg class="w-3.5 h-3.5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span class="hidden sm:inline">Bersihkan Data</span>
+            </button>
+
             {{-- Badge Indikator Realtime --}}
             <span id="realtime-status-pill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF6FE] text-[#2B78C5] text-[12.5px] font-semibold">
                 <span class="w-2 h-2 rounded-full bg-[#3BB77E] animate-pulse"></span>
@@ -191,7 +205,7 @@
             <div>
                 <div class="flex items-center gap-2.5">
                     <h1 class="text-[26px] sm:text-[28px] font-semibold tracking-[-0.025em] text-[#1A1D1F] leading-tight">
-                        Folder User: <span class="text-[#2B78C5]">{{ $folderName }}</span>
+                        Folder Target: <span class="text-[#2B78C5]">{{ $folderName }}</span>
                     </h1>
                     <span id="live-indicator-pill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#DEF7EC] text-[#03543F] text-[11.5px] font-semibold">
                         <span class="w-2 h-2 rounded-full bg-[#3BB77E] animate-ping"></span>
@@ -290,6 +304,94 @@
                         <path d="M10 17h4"/>
                     </svg>
                 </button>
+            </div>
+        </div>
+
+        {{-- =================================================================
+             DETAIL ATAS: USER RESPONSE & HASIL_SS
+             (Nama, Device Name, Status, Resolution)
+             ================================================================= --}}
+        <div class="mb-7 bg-white rounded-[20px] border border-[#ECEEF2] p-5 sm:p-6 shadow-[0_4px_20px_-6px_rgba(16,24,40,0.04)]">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                {{-- Detail Kiri: User & Status Respons --}}
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br from-[#EBF6FE] to-[#D8EEFC] border border-[#D0E9FA] flex items-center justify-center text-[#2B78C5] shrink-0">
+                        <svg class="w-6 h-6 sm:w-7 sm:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 id="detail-user-name" class="text-[20px] sm:text-[22px] font-bold text-[#1A1D1F] tracking-[-0.02em]">
+                                {{ $folderName !== 'all' && $folderName !== 'hasil_ss' ? $folderName : 'Semua User (All)' }}
+                            </h2>
+                            @if (!empty($folderUserStatus))
+                                <span id="detail-user-status" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider {{ in_array(strtolower($folderUserStatus), ['yes', 'active', 'success']) ? 'bg-[#DEF7EC] text-[#03543F]' : 'bg-[#FEF08A] text-[#854D0E]' }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ in_array(strtolower($folderUserStatus), ['yes', 'active', 'success']) ? 'bg-[#3BB77E]' : 'bg-[#EAB308]' }}"></span>
+                                    <span>User Status: {{ $folderUserStatus }}</span>
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-[12.5px] text-[#7C828D] mt-1 flex flex-wrap items-center gap-2">
+                            @if (!empty($userResponse['tanggal_date']))
+                                <span class="text-[#6F767E]">Target: <strong class="text-[#1A1D1F] font-medium">{{ $userResponse['tanggal_date'] }}</strong></span>
+                            @endif
+                        </p>
+                    </div>
+                </div>
+
+                {{-- Detail Kanan: 3 Grid Box Metrics (Device Name, Resolution, SS Status) --}}
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 lg:min-w-[480px]">
+                    {{-- Metric 1: Device Name --}}
+                    <div class="px-4 py-3 rounded-xl bg-[#FAFAFB] border border-[#EBECEF] flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-white border border-[#E2E4E9] flex items-center justify-center text-[#525866] shrink-0 shadow-sm">
+                            <svg class="w-4.5 h-4.5 text-[#525866]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <line x1="8" y1="21" x2="16" y2="21"/>
+                                <line x1="12" y1="17" x2="12" y2="21"/>
+                            </svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <span class="block text-[11px] text-[#7C828D] uppercase font-semibold tracking-wider">Device Name</span>
+                            <span id="detail-device-name" class="block text-[13px] font-semibold text-[#1A1D1F] truncate transition-colors" title="{{ $folderDeviceName ?? 'Menunggu koneksi device...' }}">
+                                {{ $folderDeviceName ?? 'Menunggu...' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Metric 2: Resolution --}}
+                    <div class="px-4 py-3 rounded-xl bg-[#FAFAFB] border border-[#EBECEF] flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-white border border-[#E2E4E9] flex items-center justify-center text-[#525866] shrink-0 shadow-sm">
+                            <svg class="w-4.5 h-4.5 text-[#525866]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <path d="M3 9h18M9 21V9"/>
+                            </svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <span class="block text-[11px] text-[#7C828D] uppercase font-semibold tracking-wider">Resolution</span>
+                            <span id="detail-resolution" class="block text-[13px] font-semibold font-mono text-[#1A1D1F] truncate transition-colors" title="{{ $folderResolution ?? 'Menunggu resolusi...' }}">
+                                {{ $folderResolution ?? 'Menunggu...' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Metric 3: Status SS --}}
+                    <div class="px-4 py-3 rounded-xl bg-[#FAFAFB] border border-[#EBECEF] flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-white border border-[#E2E4E9] flex items-center justify-center text-[#3BB77E] shrink-0 shadow-sm">
+                            <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <span class="block text-[11px] text-[#7C828D] uppercase font-semibold tracking-wider">Status</span>
+                            <span id="detail-ss-status" class="block text-[13px] font-semibold capitalize {{ strtolower($folderSsStatus ?? 'active') === 'success' ? 'text-[#03543F]' : 'text-[#854D0E]' }} truncate transition-colors">
+                                {{ $folderSsStatus ?? 'Active' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -504,6 +606,8 @@
             </div>
         </div>
     </div>
+
+    @include('builder.partials.cleanup-modal')
 @endsection
 
 @push('scripts')
@@ -873,6 +977,33 @@
                 if (countBadge) {
                     const currentCount = parseInt(countBadge.textContent) || 0;
                     countBadge.textContent = `${currentCount + 1} ss`;
+                }
+
+                // Update info detail panel (device_name, resolution, status) secara realtime
+                if (ss.device_name) {
+                    const devEl = document.getElementById('detail-device-name');
+                    if (devEl) {
+                        devEl.textContent = ss.device_name;
+                        devEl.title = ss.device_name;
+                        devEl.classList.add('text-[#3BB77E]');
+                        setTimeout(() => devEl.classList.remove('text-[#3BB77E]'), 1500);
+                    }
+                }
+                if (ss.resolution) {
+                    const resEl = document.getElementById('detail-resolution');
+                    if (resEl) {
+                        resEl.textContent = ss.resolution;
+                        resEl.title = ss.resolution;
+                        resEl.classList.add('text-[#3BB77E]');
+                        setTimeout(() => resEl.classList.remove('text-[#3BB77E]'), 1500);
+                    }
+                }
+                if (ss.status) {
+                    const stEl = document.getElementById('detail-ss-status');
+                    if (stEl) {
+                        stEl.textContent = ss.status;
+                        stEl.className = `block text-[13px] font-semibold capitalize ${ss.status.toLowerCase() === 'success' ? 'text-[#03543F]' : 'text-[#854D0E]'} truncate transition-colors`;
+                    }
                 }
 
                 if (emptyState) emptyState.classList.add('hidden');

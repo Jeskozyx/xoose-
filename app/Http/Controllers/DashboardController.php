@@ -14,8 +14,9 @@ class DashboardController extends Controller
     public function index()
     {
         $folders = $this->fetchFolders();
+        $workflows = []; // Tidak ada dummy: hanya muncul jika ada data
 
-        return view('dashboard', compact('folders'));
+        return view('dashboard', compact('folders', 'workflows'));
     }
 
     /**
@@ -72,7 +73,47 @@ class DashboardController extends Controller
             Log::warning('Gagal mengambil data dari Supabase hasil_ss: ' . $e->getMessage());
         }
 
-        return view('folders', compact('screenshots', 'folderName', 'folders', 'activeWindows'));
+        // Ambil detail data dari tabel user_responses untuk nama folder ini
+        $userResponse = null;
+        if ($folderName !== 'all' && $folderName !== 'hasil_ss') {
+            try {
+                $uRes = Http::withHeaders([
+                    'apikey'        => $supabaseKey,
+                    'Authorization' => 'Bearer ' . $supabaseKey,
+                ])
+                ->timeout(5)
+                ->get(rtrim($supabaseUrl, '/') . '/user_responses', [
+                    'select' => '*',
+                    'nama'   => 'eq.' . $folderName,
+                    'limit'  => 1,
+                ]);
+
+                if ($uRes->successful() && !empty($uRes->json())) {
+                    $userResponse = $uRes->json()[0];
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Gagal mengambil user_response detail: ' . $e->getMessage());
+            }
+        }
+
+        // Tentukan metadata device_name, resolution, dan status dari tabel hasil_ss & user_responses
+        $latestSS = !empty($screenshots) ? $screenshots[0] : null;
+        $folderDeviceName = $latestSS['device_name'] ?? (!empty($screenshots) ? collect($screenshots)->pluck('device_name')->filter()->first() : null);
+        $folderResolution = $latestSS['resolution'] ?? (!empty($screenshots) ? collect($screenshots)->pluck('resolution')->filter()->first() : null);
+        $folderSsStatus = $latestSS['status'] ?? null;
+        $folderUserStatus = $userResponse['status'] ?? null;
+
+        return view('folders', compact(
+            'screenshots',
+            'folderName',
+            'folders',
+            'activeWindows',
+            'userResponse',
+            'folderDeviceName',
+            'folderResolution',
+            'folderSsStatus',
+            'folderUserStatus'
+        ));
     }
 
     /**
@@ -97,28 +138,6 @@ class DashboardController extends Controller
                 'order'  => 'id.desc',
             ]);
 
-            // 2. Hitung jumlah screenshot per user_name dari hasil_ss
-            $ssCounts = [];
-            try {
-                $ssCountRes = Http::withHeaders([
-                    'apikey'        => $supabaseKey,
-                    'Authorization' => 'Bearer ' . $supabaseKey,
-                ])
-                ->timeout(5)
-                ->get(rtrim($supabaseUrl, '/') . '/hasil_ss', [
-                    'select' => 'user_name',
-                ]);
-
-                if ($ssCountRes->successful()) {
-                    $ssCounts = collect($ssCountRes->json())
-                        ->groupBy('user_name')
-                        ->map(fn ($group) => $group->count())
-                        ->all();
-                }
-            } catch (\Throwable $e) {
-                // Ignore count error
-            }
-
             if ($response->successful()) {
                 $rows = $response->json();
                 $themes = ['lavender', 'sky', 'peach'];
@@ -134,6 +153,39 @@ class DashboardController extends Controller
                 if (!empty($rows)) {
                     // Kelompokkan nama user agar unik (jika user input form lebih dari sekali)
                     $uniqueUsers = collect($rows)->unique('nama')->values();
+
+                    // 2. Hitung jumlah screenshot per user secara paralel menggunakan Prefer: count=exact
+                    // Ini akurat 100% dan tidak terpotong oleh batasan 1000 baris Supabase
+                    $ssCounts = [];
+                    try {
+                        $countResponses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($uniqueUsers, $supabaseUrl, $supabaseKey) {
+                            return $uniqueUsers->map(function ($row) use ($pool, $supabaseUrl, $supabaseKey) {
+                                $userName = !empty($row['nama']) ? $row['nama'] : '';
+                                return $pool->as($userName)->withHeaders([
+                                    'apikey'        => $supabaseKey,
+                                    'Authorization' => 'Bearer ' . $supabaseKey,
+                                    'Prefer'        => 'count=exact',
+                                    'Range'         => '0-0',
+                                ])->timeout(4)->get(rtrim($supabaseUrl, '/') . '/hasil_ss', [
+                                    'select'    => 'id',
+                                    'user_name' => 'eq.' . $userName,
+                                ]);
+                            });
+                        });
+
+                        foreach ($countResponses as $userName => $res) {
+                            if ($res instanceof \Illuminate\Http\Client\Response && ($res->status() === 200 || $res->status() === 206)) {
+                                $cr = $res->header('Content-Range'); // e.g. "0-0/9" or "*/0"
+                                if ($cr && preg_match('/\/(\d+)$/', $cr, $m)) {
+                                    $ssCounts[$userName] = (int) $m[1];
+                                } else {
+                                    $ssCounts[$userName] = count($res->json() ?: []);
+                                }
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Pool count hasil_ss failed: ' . $e->getMessage());
+                    }
 
                     $folders = $uniqueUsers->map(function ($row, $index) use ($themes, $avatarPresets, $ssCounts) {
                         $theme = $themes[$index % count($themes)];
@@ -162,36 +214,7 @@ class DashboardController extends Controller
             Log::warning('Gagal koneksi ke Supabase user_responses: ' . $e->getMessage());
         }
 
-        // Fallback default jika database kosong atau error
-        if (empty($folders)) {
-            $folders = [
-                [
-                    'id'      => 'task-automation',
-                    'title'   => 'Task Automation',
-                    'items'   => 3,
-                    'theme'   => 'lavender',
-                    'avatars' => ['alex'],
-                    'extra'   => 0,
-                ],
-                [
-                    'id'      => 'notes-highlights',
-                    'title'   => 'Notes & Highlights',
-                    'items'   => 17,
-                    'theme'   => 'sky',
-                    'avatars' => ['elena', 'marcus'],
-                    'extra'   => 0,
-                ],
-                [
-                    'id'      => 'billing-invoicing',
-                    'title'   => 'Billing & Invoicing',
-                    'items'   => 5,
-                    'theme'   => 'peach',
-                    'avatars' => ['alex', 'sara', 'marcus'],
-                    'extra'   => 3,
-                ],
-            ];
-        }
-
+        // Tidak ada data dummy fallback: hanya tampilkan data nyata dari Supabase user_responses
         return $folders;
     }
 

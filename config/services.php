@@ -38,6 +38,7 @@ return [
     'supabase' => [
         'url' => env('SUPABASE_URL', 'https://wqjfunxfngowxwdmyzyj.supabase.co/rest/v1'),
         'key' => env('SUPABASE_KEY', 'sb_publishable_u2lBe4CRF_2XEqbkniBjbw_p0gGEXgZ'),
+        'service_key' => env('SUPABASE_SERVICE_ROLE_KEY'),
     ],
 
 ];
