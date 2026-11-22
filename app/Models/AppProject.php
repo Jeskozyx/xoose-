@@ -52,4 +52,9 @@ class AppProject extends Model
     {
         return $this->hasOne(AppBuild::class)->latestOfMany();
     }
+
+    public function managedApp(): HasOne
+    {
+        return $this->hasOne(ManagedApp::class, 'app_project_id');
+    }
 }

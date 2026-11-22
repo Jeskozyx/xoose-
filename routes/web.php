@@ -3,7 +3,15 @@
 use App\Http\Controllers\AppBuildController;
 use App\Http\Controllers\AppEditorController;
 use App\Http\Controllers\AppProjectController;
+use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Remote\AppDeviceController;
+use App\Http\Controllers\Remote\AppReleaseController;
+use App\Http\Controllers\Remote\ManagedAppController;
+use App\Http\Controllers\Remote\ServiceCommandController;
+use App\Http\Controllers\Remote\ServiceConfigController;
+use App\Http\Controllers\Remote\ServiceControlController;
+use App\Http\Controllers\Remote\ServiceLogController;
 use App\Http\Controllers\SupabaseResourceController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,3 +48,56 @@ Route::prefix('builder')->name('builder.')->group(function () {
     Route::get('/resources/stats', [SupabaseResourceController::class, 'stats'])->name('resources.stats');
     Route::post('/resources/cleanup', [SupabaseResourceController::class, 'cleanup'])->name('resources.cleanup');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Admin Authentication Routes (Hanya di Dashboard Web Xoose)
+|--------------------------------------------------------------------------
+*/
+Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AdminAuthController::class, 'login'])->name('login.attempt');
+Route::post('/logout', [AdminAuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| Centralized Remote Service Manager Routes (/remote/* — 8 Halaman Admin)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('remote')
+    ->middleware(['auth'])
+    ->name('remote.')
+    ->group(function () {
+        // 1. Application Manager
+        Route::get('/apps', [ManagedAppController::class, 'index'])->name('apps.index');
+        Route::post('/apps', [ManagedAppController::class, 'store'])->name('apps.store');
+        Route::post('/apps/{managedApp}/enrollments', [ManagedAppController::class, 'createEnrollment'])->name('apps.enrollments.store');
+        Route::post('/apps/{managedApp}/build', [ManagedAppController::class, 'triggerBuild'])->name('apps.build');
+
+        // 2 & 3. Device Manager & Device Detail
+        Route::get('/devices', [AppDeviceController::class, 'index'])->name('devices.index');
+        Route::get('/devices/{device}', [AppDeviceController::class, 'show'])->name('devices.show');
+        Route::post('/devices/{device}/revoke', [AppDeviceController::class, 'revoke'])->name('devices.revoke');
+
+        // 4. Service Manager
+        Route::get('/devices/{device}/services', [ServiceControlController::class, 'index'])->name('services.index');
+        Route::post('/devices/{device}/services/{service}/command', [ServiceControlController::class, 'dispatch'])->name('services.command');
+
+        // 5. Service Configuration
+        Route::get('/configs', [ServiceConfigController::class, 'index'])->name('configs.index');
+        Route::get('/configs/{scope}/{service}', [ServiceConfigController::class, 'edit'])->name('configs.edit');
+        Route::put('/configs/{scope}/{service}', [ServiceConfigController::class, 'update'])->name('configs.update');
+        Route::post('/configs/{scope}/{service}/rollback/{version}', [ServiceConfigController::class, 'rollback'])->name('configs.rollback');
+
+        // 6. Command History
+        Route::get('/commands', [ServiceCommandController::class, 'index'])->name('commands.index');
+        Route::post('/commands/{command}/cancel', [ServiceCommandController::class, 'cancel'])->name('commands.cancel');
+        Route::post('/commands/{command}/retry', [ServiceCommandController::class, 'retry'])->name('commands.retry');
+
+        // 7. Logs & Monitoring
+        Route::get('/logs', [ServiceLogController::class, 'index'])->name('logs.index');
+
+        // 8. Releases & Updates
+        Route::get('/releases', [AppReleaseController::class, 'index'])->name('releases.index');
+        Route::post('/releases', [AppReleaseController::class, 'store'])->name('releases.store');
+        Route::post('/releases/{release}/activate', [AppReleaseController::class, 'activate'])->name('releases.activate');
+    });

@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\AppBuild;
 use App\Models\AppProject;
+use App\Models\DeviceEnrollment;
+use App\Services\Remote\DeviceEnrollmentService;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;
 
@@ -70,6 +72,41 @@ class BuildService
 
         // Override build format with the one chosen for this build
         $manifestData['build']['format'] = $build->format;
+
+        // Integrasi Milestone 6: Jika proyek terhubung ke ManagedApp, suntikkan identitas Agent
+        // (hanya enrollment_code terbatas, TIDAK PERNAH menyematkan service_role atau shared device_token)
+        $managedApp = $project->managedApp;
+        if ($managedApp) {
+            $enrollment = $managedApp->enrollments()
+                ->where('status', DeviceEnrollment::STATUS_PENDING)
+                ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+                ->latest()
+                ->first();
+
+            if (! $enrollment || ! $enrollment->isUsable()) {
+                $enrollment = app(DeviceEnrollmentService::class)->createEnrollmentCode(
+                    app: $managedApp,
+                    actor: null,
+                    label: "Auto Build #{$build->id}",
+                    maxUses: 10,
+                    expiresInHours: 168,
+                );
+            }
+
+            $manifestData['application']['version'] = $managedApp->current_version ?: '1.0.0';
+            $manifestData['agent'] = [
+                'enabled' => true,
+                'api_base_url' => rtrim((string) config('app.url', 'http://localhost:8000'), '/'),
+                'project_slug' => $managedApp->slug,
+                'enrollment_code' => $enrollment->enrollment_code,
+                'heartbeat_interval_seconds' => 30,
+                'poll_interval_seconds' => 10,
+                'config_sync_interval_seconds' => 60,
+                'realtime_enabled' => false,
+                'app_version' => $managedApp->current_version ?: '1.0.0',
+            ];
+            $managedApp->update(['build_status' => 'building']);
+        }
 
         if (!File::exists($this->tempDir)) {
             File::makeDirectory($this->tempDir, 0755, true);
@@ -148,6 +185,9 @@ class BuildService
             ]);
 
             $project->update(['status' => 'built']);
+            if ($managedApp) {
+                $managedApp->update(['build_status' => 'built']);
+            }
         } else {
             $errorMsg = $result['error'] ?? ($stderr ?: "Build failed with exit code {$exitCode}");
             $build->update([
@@ -159,6 +199,9 @@ class BuildService
             ]);
 
             $project->update(['status' => 'failed']);
+            if ($managedApp) {
+                $managedApp->update(['build_status' => 'failed']);
+            }
         }
 
         return $build;

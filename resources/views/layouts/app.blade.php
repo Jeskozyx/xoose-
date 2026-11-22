@@ -22,7 +22,19 @@
         @php
             $currentActiveMenu = $activeMenu ?? null;
             if (!$currentActiveMenu) {
-                if (request()->routeIs('builder.*') || request()->is('builder*')) {
+                if (request()->routeIs('remote.apps.*') || request()->is('remote/apps*')) {
+                    $currentActiveMenu = 'remote.apps';
+                } elseif (request()->routeIs('remote.devices.*') || request()->routeIs('remote.services.*') || request()->is('remote/devices*')) {
+                    $currentActiveMenu = 'remote.devices';
+                } elseif (request()->routeIs('remote.configs.*') || request()->is('remote/configs*')) {
+                    $currentActiveMenu = 'remote.configs';
+                } elseif (request()->routeIs('remote.commands.*') || request()->is('remote/commands*')) {
+                    $currentActiveMenu = 'remote.commands';
+                } elseif (request()->routeIs('remote.logs.*') || request()->is('remote/logs*')) {
+                    $currentActiveMenu = 'remote.logs';
+                } elseif (request()->routeIs('remote.releases.*') || request()->is('remote/releases*')) {
+                    $currentActiveMenu = 'remote.releases';
+                } elseif (request()->routeIs('builder.*') || request()->is('builder*')) {
                     $currentActiveMenu = 'builder';
                 } elseif (request()->routeIs('folders.*') || request()->is('folders*')) {
                     $currentActiveMenu = 'folders';
