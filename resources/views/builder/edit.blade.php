@@ -175,13 +175,25 @@
                                 class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                             >
                         @else
-                            <input
-                                type="text"
-                                name="configuration[{{ $key }}]"
-                                id="conf_{{ $key }}"
-                                value="{{ $currentVal }}"
-                                class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                            >
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="text"
+                                    name="configuration[{{ $key }}]"
+                                    id="conf_{{ $key }}"
+                                    value="{{ $currentVal }}"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                                >
+                                @if ($key === 'date_invitation_text')
+                                    <div class="shrink-0 flex items-center gap-1.5">
+                                        <input
+                                            type="datetime-local"
+                                            id="quick_date_picker"
+                                            title="Pilih dari kalender untuk mengisi Teks Tanggal & Countdown otomatis"
+                                            class="px-3 py-2 rounded-xl border border-gray-300 text-xs bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
+                                        >
+                                    </div>
+                                @endif
+                            </div>
                         @endif
                     </div>
                 @endforeach
@@ -234,5 +246,77 @@
             }
         });
     });
+
+    // Two-way sync between Teks Tanggal Undangan, Kalender Picker, & Target Waktu Countdown
+    (function() {
+        const textInput = document.getElementById('conf_date_invitation_text');
+        const targetInput = document.getElementById('conf_date_countdown_target');
+        const picker = document.getElementById('quick_date_picker');
+        if (!textInput || !targetInput) return;
+
+        const monthsMap = {
+            januari: 1, jan: 1, january: 1,
+            februari: 2, feb: 2, pebruari: 2, february: 2,
+            maret: 3, mar: 3, march: 3,
+            april: 4, apr: 4,
+            mei: 5, may: 5,
+            juni: 6, jun: 6, june: 6,
+            juli: 7, jul: 7, july: 7,
+            agustus: 8, agu: 8, ags: 8, aug: 8, august: 8,
+            september: 9, sep: 9, sept: 9,
+            oktober: 10, okt: 10, oct: 10, october: 10,
+            november: 11, nov: 11, nopember: 11, nop: 11,
+            desember: 12, des: 12, dec: 12, december: 12
+        };
+        const idDays = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+        const idMonths = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+
+        function syncTargetFromText() {
+            const raw = (textInput.value || '').trim().toLowerCase();
+            if (!raw) return;
+            let y, m, d;
+            const mNames = Object.keys(monthsMap).sort((a, b) => b.length - a.length).join('|');
+            const r1 = new RegExp(`\\b(\\d{1,2})\\s+(${mNames})\\s+(\\d{4})\\b`, 'i').exec(raw);
+            if (r1) {
+                d = parseInt(r1[1], 10);
+                m = monthsMap[r1[2].toLowerCase()];
+                y = parseInt(r1[3], 10);
+            } else {
+                const r2 = /\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/.exec(raw);
+                const r3 = /\b(\d{1,2})[-/](\d{1,2})[-/](\d{4})\b/.exec(raw);
+                if (r2) { y = +r2[1]; m = +r2[2]; d = +r2[3]; }
+                else if (r3) { d = +r3[1]; m = +r3[2]; y = +r3[3]; }
+            }
+            if (!y || !m || !d) return;
+
+            let hh = 19, mm = 0;
+            const rem = r1 ? (raw.slice(0, r1.index) + ' ' + raw.slice(r1.index + r1[0].length)) : raw;
+            const tm = /(?:•|pukul|jam|\b)\s*([01]?\d|2[0-3])[:\.]([0-5]\d)\b/.exec(rem);
+            if (tm) {
+                hh = parseInt(tm[1], 10);
+                mm = parseInt(tm[2], 10);
+            }
+            targetInput.value = `${y}-${pad2(m)}-${pad2(d)}T${pad2(hh)}:${pad2(mm)}:00+07:00`;
+            if (picker) {
+                picker.value = `${y}-${pad2(m)}-${pad2(d)}T${pad2(hh)}:${pad2(mm)}`;
+            }
+        }
+
+        textInput.addEventListener('input', syncTargetFromText);
+
+        if (picker) {
+            picker.addEventListener('change', () => {
+                if (!picker.value) return;
+                const dt = new Date(picker.value);
+                if (isNaN(dt.getTime())) return;
+                const y = dt.getFullYear(), m = dt.getMonth(), d = dt.getDate();
+                const hh = pad2(dt.getHours()), mm = pad2(dt.getMinutes());
+                textInput.value = `${idDays[dt.getDay()]}, ${d} ${idMonths[m]} ${y} • ${hh}.${mm}`;
+                targetInput.value = `${y}-${pad2(m + 1)}-${pad2(d)}T${hh}:${mm}:00+07:00`;
+            });
+        }
+    })();
 </script>
 @endsection
