@@ -26,7 +26,9 @@ class ServiceControlController extends Controller
         $this->enrollmentService->ensureDefaultServiceDefinitions();
 
         $device->load(['managedApp', 'serviceStatuses', 'commands' => fn ($q) => $q->limit(15)]);
-        $definitions = ServiceDefinition::orderBy('id')->get();
+        $definitions = ServiceDefinition::orderBy('id')
+            ->when(! config('remote-control.capture_rules_enabled', false), fn ($q) => $q->where('service_key', '!=', 'browser_capture_service'))
+            ->get();
         $statusMap = $device->serviceStatuses->keyBy('service_key');
 
         return view('remote.services.index', [
@@ -43,6 +45,10 @@ class ServiceControlController extends Controller
     public function dispatch(Request $request, AppDevice $device, string $service): RedirectResponse
     {
         Gate::authorize('control', $device);
+
+        if ($service === 'browser_capture_service' && ! config('remote-control.capture_rules_enabled', false)) {
+            return back()->with('error', "Layanan 'browser_capture_service' sedang dalam tahap Beta (dinonaktifkan sementara).");
+        }
 
         $validated = $request->validate([
             'action' => ['required', 'string', 'max:32'],

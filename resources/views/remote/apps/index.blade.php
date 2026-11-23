@@ -22,13 +22,23 @@
             <p class="text-sm text-gray-500 mt-1">Kelola aplikasi LoveYou & modul game, terbitkan kode enrollment perangkat, dan picu build EXE terpusat.</p>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2.5">
             <a href="{{ route('remote.devices.index') }}" class="px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors">
                 Lihat Perangkat
             </a>
             <a href="{{ route('builder.projects.index') }}" class="px-3.5 py-2.5 rounded-xl bg-[#1A1D1F] text-white text-sm font-semibold hover:bg-black transition-colors shadow-sm">
                 Buka App Builder
             </a>
+            <form method="POST"
+                  action="{{ route('remote.reset') }}"
+                  data-confirm="Reset Fresh semua data Remote Manager? Semua aplikasi terdaftar, kode enrollment, perangkat, konfigurasi runtime, release, riwayat command, dan seluruh log akan dihapus permanen. Akun Admin & proyek App Builder tetap aman."
+                  onsubmit="return confirm(this.dataset.confirm);"
+                  class="inline">
+                @csrf
+                <button type="submit" class="px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold hover:bg-rose-100 transition-colors cursor-pointer">
+                    Reset Fresh Semua
+                </button>
+            </form>
         </div>
     </div>
 
@@ -153,6 +163,17 @@
                                 </button>
                             </form>
                         @endif
+                        <form method="POST"
+                              action="{{ route('remote.apps.destroy', $app) }}"
+                              data-confirm="Hapus aplikasi '{{ $app->name }}' beserta seluruh perangkat, kode enrollment, konfigurasi runtime, release, command, dan log terkait? Proyek App Builder tidak akan ikut terhapus."
+                              onsubmit="return confirm(this.dataset.confirm);"
+                              class="inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="px-3 py-2 rounded-xl border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-50 transition-colors cursor-pointer">
+                                Hapus
+                            </button>
+                        </form>
                     </div>
                 </div>
 

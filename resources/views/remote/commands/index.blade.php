@@ -19,6 +19,18 @@
             <h1 class="text-2xl font-bold tracking-tight text-gray-900">Command Center & History</h1>
             <p class="text-sm text-gray-500 mt-1">Pantau antrean command (<code class="font-mono text-xs bg-gray-100 px-1 rounded">pending</code> → <code class="font-mono text-xs bg-gray-100 px-1 rounded">delivered</code> → <code class="font-mono text-xs bg-gray-100 px-1 rounded">acknowledged</code> → <code class="font-mono text-xs bg-gray-100 px-1 rounded">succeeded</code>/<code class="font-mono text-xs bg-gray-100 px-1 rounded">failed</code>/<code class="font-mono text-xs bg-gray-100 px-1 rounded">expired</code>), batalkan, atau kirim ulang.</p>
         </div>
+
+        <form method="POST"
+              action="{{ route('remote.commands.clear') }}"
+              data-confirm="Bersihkan seluruh riwayat remote command pada semua perangkat Anda? Aplikasi dan perangkat tidak akan dihapus."
+              onsubmit="return confirm(this.dataset.confirm);"
+              class="shrink-0">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold hover:bg-rose-100 transition-colors cursor-pointer">
+                Bersihkan Riwayat
+            </button>
+        </form>
     </div>
 
     @if (session('success'))

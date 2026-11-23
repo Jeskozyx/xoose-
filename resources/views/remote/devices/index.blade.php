@@ -123,13 +123,26 @@
                                     Services
                                 </a>
                                 @if (! $device->isRevoked())
-                                    <form method="POST" action="{{ route('remote.devices.revoke', $device) }}" onsubmit="return confirm('Cabut akses perangkat {{ $device->hostname }}? Token perangkat akan langsung tidak berlaku.');">
+                                    <form method="POST"
+                                          action="{{ route('remote.devices.revoke', $device) }}"
+                                          data-confirm="Cabut akses perangkat {{ $device->hostname }}? Token perangkat akan langsung tidak berlaku."
+                                          onsubmit="return confirm(this.dataset.confirm);">
                                         @csrf
-                                        <button type="submit" class="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-50 cursor-pointer">
+                                        <button type="submit" class="px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-50 cursor-pointer">
                                             Revoke
                                         </button>
                                     </form>
                                 @endif
+                                <form method="POST"
+                                      action="{{ route('remote.devices.destroy', $device) }}"
+                                      data-confirm="Hapus permanen perangkat {{ $device->hostname }} ({{ $device->device_code }}) beserta seluruh command, heartbeat, status, dan log-nya?"
+                                      onsubmit="return confirm(this.dataset.confirm);">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-50 cursor-pointer">
+                                        Hapus
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>

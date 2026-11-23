@@ -84,4 +84,24 @@ class ServiceCommandController extends Controller
 
         return back()->with('success', "Command dikirim ulang dengan ID baru: {$newCmd->command_id}.");
     }
+
+    public function clearAll(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $deletedCount = ServiceCommand::whereHas(
+            'device.managedApp',
+            fn ($q) => $q->where('owner_id', $user->id)->orWhereNull('owner_id')
+        )->delete();
+
+        if ($deletedCount === 0) {
+            return redirect()
+                ->route('remote.commands.index')
+                ->with('success', 'Riwayat command sudah kosong.');
+        }
+
+        return redirect()
+            ->route('remote.commands.index')
+            ->with('success', "{$deletedCount} riwayat remote command berhasil dibersihkan.");
+    }
 }

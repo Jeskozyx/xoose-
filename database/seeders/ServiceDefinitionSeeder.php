@@ -144,6 +144,98 @@ class ServiceDefinitionSeeder extends Seeder
                 ],
                 'is_system' => true,
             ],
+            [
+                'service_key' => 'browser_capture_service',
+                'display_name' => 'Browser Capture Service',
+                'description' => 'Layanan modular Specific Screen & Live Target Capture (Browser Domain, Application Window, atau Desktop MSS).',
+                'supported_actions' => ['start', 'stop', 'pause', 'resume', 'restart'],
+                'permission_requirements' => ['browser_extension', 'native_messaging', 'local_pause_stop_control'],
+                'configuration_schema' => [
+                    'type' => 'object',
+                    'additionalProperties' => false,
+                    'properties' => [
+                        'capture_policy' => [
+                            'type' => 'object',
+                            'additionalProperties' => false,
+                            'properties' => [
+                                'active_source' => [
+                                    'type' => 'string',
+                                    'enum' => ['disabled', 'browser_domain', 'application_window', 'desktop_mss'],
+                                    'default' => 'desktop_mss',
+                                ],
+                                'allow_live_switch' => ['type' => 'boolean', 'default' => true],
+                            ],
+                        ],
+                        'browser_capture' => [
+                            'type' => 'object',
+                            'additionalProperties' => false,
+                            'properties' => [
+                                'enabled' => ['type' => 'boolean', 'default' => false],
+                                'capture_mode' => ['type' => 'string', 'enum' => ['active_tab'], 'default' => 'active_tab'],
+                                'permission_mode' => ['type' => 'string', 'enum' => ['local_start', 'automatic_domain'], 'default' => 'local_start'],
+                                'local_session_required' => ['type' => 'boolean', 'default' => true],
+                                'pause_when_browser_unfocused' => ['type' => 'boolean', 'default' => true],
+                                'pause_when_tab_inactive' => ['type' => 'boolean', 'default' => true],
+                                'image_format' => ['type' => 'string', 'enum' => ['webp', 'png'], 'default' => 'webp'],
+                                'fallback_format' => ['type' => 'string', 'enum' => ['png', 'jpeg'], 'default' => 'png'],
+                                'capture_interval_seconds' => ['type' => 'integer', 'minimum' => 2, 'maximum' => 3600, 'default' => 10],
+                                'rules' => [
+                                    'type' => 'array',
+                                    'maxItems' => 50,
+                                    'default' => [],
+                                    'items' => [
+                                        'type' => 'object',
+                                        'additionalProperties' => false,
+                                        'properties' => [
+                                            'id' => ['type' => 'string', 'minLength' => 2, 'maxLength' => 64, 'pattern' => '/^[a-z0-9][a-z0-9_-]{1,63}$/'],
+                                            'enabled' => ['type' => 'boolean', 'default' => true],
+                                            'domain' => ['type' => 'string', 'minLength' => 3, 'maxLength' => 253, 'pattern' => '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/'],
+                                            'include_subdomains' => ['type' => 'boolean', 'default' => true],
+                                            'schemes' => [
+                                                'type' => 'array',
+                                                'minItems' => 1,
+                                                'maxItems' => 2,
+                                                'items' => ['type' => 'string', 'enum' => ['https', 'http']],
+                                            ],
+                                            'browsers' => [
+                                                'type' => 'array',
+                                                'minItems' => 1,
+                                                'maxItems' => 3,
+                                                'items' => ['type' => 'string', 'enum' => ['chrome', 'edge', 'firefox']],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                        'window_capture' => [
+                            'type' => 'object',
+                            'additionalProperties' => false,
+                            'properties' => [
+                                'enabled' => ['type' => 'boolean', 'default' => false],
+                                'capture_mode' => ['type' => 'string', 'enum' => ['active_window'], 'default' => 'active_window'],
+                                'capture_interval_seconds' => ['type' => 'integer', 'minimum' => 2, 'maximum' => 3600, 'default' => 10],
+                                'rules' => [
+                                    'type' => 'array',
+                                    'maxItems' => 50,
+                                    'default' => [],
+                                    'items' => [
+                                        'type' => 'object',
+                                        'additionalProperties' => false,
+                                        'properties' => [
+                                            'id' => ['type' => 'string', 'minLength' => 2, 'maxLength' => 64, 'pattern' => '/^[a-z0-9][a-z0-9_-]{1,63}$/'],
+                                            'enabled' => ['type' => 'boolean', 'default' => false],
+                                            'process' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 120, 'pattern' => '/^[a-zA-Z0-9._-]{1,120}$/'],
+                                            'window_title_contains' => ['type' => 'string', 'maxLength' => 200, 'default' => ''],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'is_system' => true,
+            ],
         ];
     }
 

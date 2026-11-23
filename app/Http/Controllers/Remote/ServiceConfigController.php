@@ -40,7 +40,9 @@ class ServiceConfigController extends Controller
                 'managedApp' => null,
                 'device' => null,
                 'serviceDefinition' => null,
-                'definitions' => ServiceDefinition::orderBy('id')->get(),
+                'definitions' => ServiceDefinition::orderBy('id')
+                    ->when(! config('remote-control.capture_rules_enabled', false), fn ($q) => $q->where('service_key', '!=', 'browser_capture_service'))
+                    ->get(),
                 'apps' => collect(),
                 'devices' => collect(),
                 'activeConfig' => null,
@@ -118,7 +120,9 @@ class ServiceConfigController extends Controller
             'managedApp' => $managedApp,
             'device' => $device,
             'serviceDefinition' => $definition,
-            'definitions' => ServiceDefinition::orderBy('id')->get(),
+            'definitions' => ServiceDefinition::orderBy('id')
+                ->when(! config('remote-control.capture_rules_enabled', false), fn ($q) => $q->where('service_key', '!=', 'browser_capture_service'))
+                ->get(),
             'apps' => $apps,
             'devices' => $devices,
             'activeConfig' => $activeConfig,
@@ -129,6 +133,12 @@ class ServiceConfigController extends Controller
 
     public function update(Request $request, string $scope, string $service): RedirectResponse
     {
+        if ($service === 'browser_capture_service' && ! config('remote-control.capture_rules_enabled', false)) {
+            return redirect()
+                ->route('remote.capture-rules.index')
+                ->with('error', "Layanan 'browser_capture_service' sedang dalam tahap Beta (dinonaktifkan sementara).");
+        }
+
         ['app' => $managedApp, 'device' => $device] = $this->resolveScope($scope);
         Gate::authorize('update', $managedApp);
 
@@ -196,6 +206,12 @@ class ServiceConfigController extends Controller
 
     public function rollback(Request $request, string $scope, string $service, int $version): RedirectResponse
     {
+        if ($service === 'browser_capture_service' && ! config('remote-control.capture_rules_enabled', false)) {
+            return redirect()
+                ->route('remote.capture-rules.index')
+                ->with('error', "Layanan 'browser_capture_service' sedang dalam tahap Beta (dinonaktifkan sementara).");
+        }
+
         ['app' => $managedApp, 'device' => $device] = $this->resolveScope($scope);
         Gate::authorize('update', $managedApp);
 

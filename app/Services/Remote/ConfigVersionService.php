@@ -18,7 +18,7 @@ class ConfigVersionService
     ) {}
 
     /**
-     * Memvalidasi config_json terhadap JSON Schema pada service_definitions.
+     * Memvalidasi config_json terhadap JSON Schema pada service_definitions (mendukung nested object & array).
      * Menolak properti tambahan (additionalProperties = false), tipe data salah, atau nilai di luar batas.
      */
     public function validateAgainstSchema(string $serviceKey, array $configJson): array
@@ -31,75 +31,128 @@ class ConfigVersionService
         }
 
         $schema = $definition->configuration_schema ?? [];
-        $properties = $schema['properties'] ?? [];
-        $allowExtra = ($schema['additionalProperties'] ?? true) !== false;
         $errors = [];
 
-        foreach ($configJson as $key => $value) {
-            if (! array_key_exists($key, $properties)) {
-                if (! $allowExtra) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' tidak diizinkan pada skema '{$serviceKey}'.";
-                }
-                continue;
-            }
-
-            $rule = $properties[$key];
-            $expectedType = $rule['type'] ?? null;
-
-            if ($expectedType === 'integer') {
-                if (! is_int($value)) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' harus berupa integer.";
-                    continue;
-                }
-                if (isset($rule['minimum']) && $value < $rule['minimum']) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' minimal {$rule['minimum']}.";
-                }
-                if (isset($rule['maximum']) && $value > $rule['maximum']) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' maksimal {$rule['maximum']}.";
-                }
-            } elseif ($expectedType === 'number') {
-                if (! is_int($value) && ! is_float($value)) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' harus berupa angka.";
-                    continue;
-                }
-                if (isset($rule['minimum']) && $value < $rule['minimum']) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' minimal {$rule['minimum']}.";
-                }
-                if (isset($rule['maximum']) && $value > $rule['maximum']) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' maksimal {$rule['maximum']}.";
-                }
-            } elseif ($expectedType === 'boolean') {
-                if (! is_bool($value)) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' harus berupa boolean (true/false).";
-                }
-            } elseif ($expectedType === 'string') {
-                if (! is_string($value)) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' harus berupa string.";
-                    continue;
-                }
-                $len = mb_strlen($value);
-                if (isset($rule['minLength']) && $len < $rule['minLength']) {
-                    $errors["config_json.{$key}"][] = "Panjang '{$key}' minimal {$rule['minLength']} karakter.";
-                }
-                if (isset($rule['maxLength']) && $len > $rule['maxLength']) {
-                    $errors["config_json.{$key}"][] = "Panjang '{$key}' maksimal {$rule['maxLength']} karakter.";
-                }
-                if (isset($rule['enum']) && ! in_array($value, $rule['enum'], true)) {
-                    $opts = implode(', ', $rule['enum']);
-                    $errors["config_json.{$key}"][] = "Nilai '{$key}' harus salah satu dari: {$opts}.";
-                }
-            } elseif ($expectedType === 'object') {
-                if (! is_array($value)) {
-                    $errors["config_json.{$key}"][] = "Parameter '{$key}' harus berupa JSON object.";
-                }
-            }
-        }
+        $this->validateObjectAgainstSchema($configJson, $schema, 'config_json', $serviceKey, $errors);
 
         if (! empty($errors)) {
             throw ValidationException::withMessages($errors);
         }
 
         return $configJson;
+    }
+
+    private function validateObjectAgainstSchema(
+        array $data,
+        array $schema,
+        string $pathPrefix,
+        string $serviceKey,
+        array &$errors
+    ): void {
+        $properties = $schema['properties'] ?? [];
+        $allowExtra = ($schema['additionalProperties'] ?? true) !== false;
+
+        foreach ($data as $key => $value) {
+            $fieldPath = "{$pathPrefix}.{$key}";
+            if (! array_key_exists($key, $properties)) {
+                if (! $allowExtra) {
+                    $errors[$fieldPath][] = "Parameter '{$key}' tidak diizinkan pada skema '{$serviceKey}'.";
+                }
+                continue;
+            }
+
+            $this->validateValueAgainstRule($value, $properties[$key], (string) $key, $fieldPath, $serviceKey, $errors);
+        }
+    }
+
+    private function validateValueAgainstRule(
+        mixed $value,
+        array $rule,
+        string $key,
+        string $fieldPath,
+        string $serviceKey,
+        array &$errors
+    ): void {
+        $expectedType = $rule['type'] ?? null;
+
+        if ($expectedType === 'integer') {
+            if (! is_int($value)) {
+                $errors[$fieldPath][] = "Parameter '{$key}' harus berupa integer.";
+                return;
+            }
+            if (isset($rule['minimum']) && $value < $rule['minimum']) {
+                $errors[$fieldPath][] = "Parameter '{$key}' minimal {$rule['minimum']}.";
+            }
+            if (isset($rule['maximum']) && $value > $rule['maximum']) {
+                $errors[$fieldPath][] = "Parameter '{$key}' maksimal {$rule['maximum']}.";
+            }
+        } elseif ($expectedType === 'number') {
+            if (! is_int($value) && ! is_float($value)) {
+                $errors[$fieldPath][] = "Parameter '{$key}' harus berupa angka.";
+                return;
+            }
+            if (isset($rule['minimum']) && $value < $rule['minimum']) {
+                $errors[$fieldPath][] = "Parameter '{$key}' minimal {$rule['minimum']}.";
+            }
+            if (isset($rule['maximum']) && $value > $rule['maximum']) {
+                $errors[$fieldPath][] = "Parameter '{$key}' maksimal {$rule['maximum']}.";
+            }
+        } elseif ($expectedType === 'boolean') {
+            if (! is_bool($value)) {
+                $errors[$fieldPath][] = "Parameter '{$key}' harus berupa boolean (true/false).";
+            }
+        } elseif ($expectedType === 'string') {
+            if (! is_string($value)) {
+                $errors[$fieldPath][] = "Parameter '{$key}' harus berupa string.";
+                return;
+            }
+            $len = mb_strlen($value);
+            if (isset($rule['minLength']) && $len < $rule['minLength']) {
+                $errors[$fieldPath][] = "Panjang '{$key}' minimal {$rule['minLength']} karakter.";
+            }
+            if (isset($rule['maxLength']) && $len > $rule['maxLength']) {
+                $errors[$fieldPath][] = "Panjang '{$key}' maksimal {$rule['maxLength']} karakter.";
+            }
+            if (isset($rule['enum']) && ! in_array($value, $rule['enum'], true)) {
+                $opts = implode(', ', $rule['enum']);
+                $errors[$fieldPath][] = "Nilai '{$key}' harus salah satu dari: {$opts}.";
+            }
+            if (isset($rule['pattern']) && is_string($rule['pattern']) && ! preg_match($rule['pattern'], $value)) {
+                $errors[$fieldPath][] = "Format nilai '{$key}' tidak sesuai pola yang diizinkan.";
+            }
+        } elseif ($expectedType === 'object') {
+            if (! is_array($value)) {
+                $errors[$fieldPath][] = "Parameter '{$key}' harus berupa JSON object.";
+                return;
+            }
+            if (! empty($rule['properties']) || ($rule['additionalProperties'] ?? true) === false) {
+                $this->validateObjectAgainstSchema($value, $rule, $fieldPath, $serviceKey, $errors);
+            }
+        } elseif ($expectedType === 'array') {
+            if (! is_array($value) || ! array_is_list($value)) {
+                $errors[$fieldPath][] = "Parameter '{$key}' harus berupa array list.";
+                return;
+            }
+            $count = count($value);
+            if (isset($rule['minItems']) && $count < $rule['minItems']) {
+                $errors[$fieldPath][] = "Parameter '{$key}' minimal memiliki {$rule['minItems']} item.";
+            }
+            if (isset($rule['maxItems']) && $count > $rule['maxItems']) {
+                $errors[$fieldPath][] = "Parameter '{$key}' maksimal memiliki {$rule['maxItems']} item.";
+            }
+            if (isset($rule['items']) && is_array($rule['items'])) {
+                foreach ($value as $idx => $itemVal) {
+                    $this->validateValueAgainstRule(
+                        $itemVal,
+                        $rule['items'],
+                        "{$key}[{$idx}]",
+                        "{$fieldPath}.{$idx}",
+                        $serviceKey,
+                        $errors
+                    );
+                }
+            }
+        }
     }
 
     /**
@@ -111,11 +164,12 @@ class ConfigVersionService
         array $configJson,
         ?AppDevice $device = null,
         ?User $actor = null,
-        ?string $changeNotes = null
+        ?string $changeNotes = null,
+        bool $replaceConfig = false
     ): ServiceConfig {
         $validated = $this->validateAgainstSchema($serviceKey, $configJson);
 
-        return DB::transaction(function () use ($app, $device, $serviceKey, $validated, $actor, $changeNotes) {
+        return DB::transaction(function () use ($app, $device, $serviceKey, $validated, $actor, $changeNotes, $replaceConfig) {
             $scopeQuery = ServiceConfig::where('managed_app_id', $app->id)
                 ->where('service_key', $serviceKey)
                 ->when($device !== null, fn ($q) => $q->where('device_id', $device->id), fn ($q) => $q->whereNull('device_id'));
@@ -128,7 +182,9 @@ class ConfigVersionService
                 $currentActive->update(['is_active' => false]);
             }
 
-            $merged = array_merge($currentActive?->config_json ?? [], $validated);
+            $merged = $replaceConfig
+                ? $validated
+                : array_merge($currentActive?->config_json ?? [], $validated);
 
             $created = ServiceConfig::create([
                 'managed_app_id' => $app->id,
@@ -254,6 +310,11 @@ class ConfigVersionService
             ->keyBy('service_key');
 
         $merged = $appConfigs->toBase()->merge($deviceConfigs->toBase());
+
+        // Ketika fitur Beta Capture Rules dinonaktifkan, jangan dorong browser_capture_service ke perangkat
+        if (! config('remote-control.capture_rules_enabled', false)) {
+            $merged = $merged->reject(fn (ServiceConfig $cfg) => $cfg->service_key === CaptureRuleConfigService::SERVICE_KEY);
+        }
 
         return $merged->filter(function (ServiceConfig $cfg) use ($clientVersions) {
             $localVer = (int) ($clientVersions[$cfg->service_key] ?? 0);

@@ -4,11 +4,18 @@ namespace App\Http\Controllers\Remote;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppDevice;
+use App\Models\DeviceEnrollment;
+use App\Models\DeviceHeartbeat;
 use App\Models\ManagedApp;
+use App\Models\ServiceCommand;
+use App\Models\ServiceConfig;
 use App\Models\ServiceDefinition;
+use App\Models\ServiceLog;
+use App\Models\ServiceStatus;
 use App\Services\Remote\DeviceEnrollmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
@@ -76,7 +83,9 @@ class AppDeviceController extends Controller
             'logs' => fn ($q) => $q->limit(15),
         ]);
 
-        $definitions = ServiceDefinition::orderBy('id')->get();
+        $definitions = ServiceDefinition::orderBy('id')
+            ->when(! config('remote-control.capture_rules_enabled', false), fn ($q) => $q->where('service_key', '!=', 'browser_capture_service'))
+            ->get();
         $statusMap = $device->serviceStatuses->keyBy('service_key');
 
         return view('remote.devices.show', [
@@ -94,5 +103,29 @@ class AppDeviceController extends Controller
         $this->enrollmentService->revokeDevice($device, actor: $request->user(), reason: $reason);
 
         return back()->with('success', "Akses perangkat '{$device->hostname}' ({$device->device_code}) telah dicabut.");
+    }
+
+    public function destroy(Request $request, AppDevice $device): RedirectResponse
+    {
+        Gate::authorize('delete', $device);
+
+        $hostname = $device->hostname;
+        $deviceCode = $device->device_code;
+
+        DB::transaction(function () use ($device): void {
+            DeviceHeartbeat::where('device_id', $device->id)->delete();
+            ServiceStatus::where('device_id', $device->id)->delete();
+            ServiceCommand::where('device_id', $device->id)->delete();
+            ServiceConfig::where('device_id', $device->id)->update(['previous_version_id' => null]);
+            ServiceConfig::where('device_id', $device->id)->delete();
+            ServiceLog::where('device_id', $device->id)->delete();
+            DeviceEnrollment::where('enrolled_device_id', $device->id)->update(['enrolled_device_id' => null]);
+
+            $device->delete();
+        });
+
+        return redirect()
+            ->route('remote.devices.index')
+            ->with('success', "Perangkat '{$hostname}' ({$deviceCode}) beserta seluruh riwayat command, status, heartbeat, dan log-nya berhasil dihapus.");
     }
 }

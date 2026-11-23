@@ -33,13 +33,26 @@
                 Config Override Perangkat
             </a>
             @if (! $device->isRevoked())
-                <form method="POST" action="{{ route('remote.devices.revoke', $device) }}" onsubmit="return confirm('Cabut akses perangkat ini secara permanen?');">
+                <form method="POST"
+                      action="{{ route('remote.devices.revoke', $device) }}"
+                      data-confirm="Cabut akses perangkat {{ $device->hostname }} secara permanen?"
+                      onsubmit="return confirm(this.dataset.confirm);">
                     @csrf
-                    <button type="submit" class="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-50 cursor-pointer">
+                    <button type="submit" class="px-3.5 py-2 rounded-xl border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-50 cursor-pointer">
                         Cabut Akses (Revoke)
                     </button>
                 </form>
             @endif
+            <form method="POST"
+                  action="{{ route('remote.devices.destroy', $device) }}"
+                  data-confirm="Hapus permanen perangkat {{ $device->hostname }} ({{ $device->device_code }}) beserta seluruh command, heartbeat, status, dan log-nya?"
+                  onsubmit="return confirm(this.dataset.confirm);">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold hover:bg-rose-100 cursor-pointer">
+                    Hapus Perangkat
+                </button>
+            </form>
         </div>
     </div>
 

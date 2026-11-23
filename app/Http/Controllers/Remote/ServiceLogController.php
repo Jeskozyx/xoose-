@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Remote;
 use App\Http\Controllers\Controller;
 use App\Models\AppDevice;
 use App\Models\ServiceLog;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -48,5 +49,26 @@ class ServiceLogController extends Controller
                 'q' => $search,
             ],
         ]);
+    }
+
+    public function clearAll(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $deletedCount = ServiceLog::where(function ($q) use ($user) {
+            $q->whereHas('managedApp', fn ($aq) => $aq->where('owner_id', $user->id)->orWhereNull('owner_id'))
+                ->orWhereHas('device.managedApp', fn ($aq) => $aq->where('owner_id', $user->id)->orWhereNull('owner_id'))
+                ->orWhere('actor_user_id', $user->id);
+        })->delete();
+
+        if ($deletedCount === 0) {
+            return redirect()
+                ->route('remote.logs.index')
+                ->with('success', 'Daftar log & audit trail sudah kosong.');
+        }
+
+        return redirect()
+            ->route('remote.logs.index')
+            ->with('success', "{$deletedCount} entri log & audit trail berhasil dibersihkan.");
     }
 }

@@ -19,7 +19,26 @@
             <h1 class="text-2xl font-bold tracking-tight text-gray-900">Logs, Errors & Admin Audit Trail</h1>
             <p class="text-sm text-gray-500 mt-1">Audit lengkap seluruh tindakan admin Xoose, event eksekusi command, perubahan konfigurasi, dan log error lokal perangkat.</p>
         </div>
+
+        <form method="POST"
+              action="{{ route('remote.logs.clear') }}"
+              data-confirm="Bersihkan seluruh catatan log & audit trail pada Remote Manager Anda? Aplikasi dan perangkat tetap tersimpan."
+              onsubmit="return confirm(this.dataset.confirm);"
+              class="shrink-0">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold hover:bg-rose-100 transition-colors cursor-pointer">
+                Bersihkan Semua Log
+            </button>
+        </form>
     </div>
+
+    @if (session('success'))
+        <div class="mt-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">{{ session('success') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="mt-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">{{ session('error') }}</div>
+    @endif
 
     {{-- Filter Bar --}}
     <form method="GET" action="{{ route('remote.logs.index') }}" class="mt-6 p-4 rounded-2xl border border-gray-200 bg-[#FAFAFB] flex flex-wrap items-center gap-3">

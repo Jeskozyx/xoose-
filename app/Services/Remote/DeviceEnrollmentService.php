@@ -244,8 +244,11 @@ class DeviceEnrollmentService
 
     public function ensureDefaultServiceDefinitions(): void
     {
-        if (ServiceDefinition::count() === 0) {
-            foreach (ServiceDefinitionSeeder::defaultDefinitions() as $def) {
+        $defaults = ServiceDefinitionSeeder::defaultDefinitions();
+        $existingKeys = ServiceDefinition::pluck('service_key')->all();
+
+        foreach ($defaults as $def) {
+            if (! in_array($def['service_key'], $existingKeys, true)) {
                 ServiceDefinition::updateOrCreate(['service_key' => $def['service_key']], $def);
             }
         }

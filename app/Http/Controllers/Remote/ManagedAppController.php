@@ -6,12 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Jobs\BuildApplicationJob;
 use App\Models\AppDevice;
 use App\Models\AppProject;
+use App\Models\AppRelease;
+use App\Models\DeviceEnrollment;
+use App\Models\DeviceHeartbeat;
 use App\Models\ManagedApp;
+use App\Models\ServiceCommand;
+use App\Models\ServiceConfig;
+use App\Models\ServiceLog;
+use App\Models\ServiceStatus;
 use App\Services\BuildService;
 use App\Services\Remote\AuditLogService;
 use App\Services\Remote\DeviceEnrollmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -142,5 +150,122 @@ class ManagedAppController extends Controller
         return redirect()
             ->route('remote.apps.index')
             ->with('success', "Build EXE #{$build->id} ({$format}) untuk '{$managedApp->name}' telah dijadwalkan ke queue.");
+    }
+
+    public function destroy(Request $request, ManagedApp $managedApp): RedirectResponse
+    {
+        Gate::authorize('delete', $managedApp);
+
+        $appName = $managedApp->name;
+        $appSlug = $managedApp->slug;
+
+        $stats = DB::transaction(function () use ($managedApp): array {
+            $deviceIds = $managedApp->devices()->pluck('id');
+
+            if ($deviceIds->isNotEmpty()) {
+                DeviceHeartbeat::whereIn('device_id', $deviceIds)->delete();
+                ServiceStatus::whereIn('device_id', $deviceIds)->delete();
+                ServiceCommand::whereIn('device_id', $deviceIds)->delete();
+            }
+
+            $logsDeleted = ServiceLog::where('managed_app_id', $managedApp->id)
+                ->when($deviceIds->isNotEmpty(), fn ($q) => $q->orWhereIn('device_id', $deviceIds))
+                ->delete();
+
+            ServiceConfig::where('managed_app_id', $managedApp->id)
+                ->update(['previous_version_id' => null]);
+            ServiceConfig::where('managed_app_id', $managedApp->id)->delete();
+
+            $enrollmentsDeleted = DeviceEnrollment::where('managed_app_id', $managedApp->id)->delete();
+            AppRelease::where('managed_app_id', $managedApp->id)->delete();
+            $devicesDeleted = AppDevice::where('managed_app_id', $managedApp->id)->delete();
+
+            $managedApp->delete();
+
+            return [
+                'devices' => $devicesDeleted,
+                'enrollments' => $enrollmentsDeleted,
+                'logs' => $logsDeleted,
+            ];
+        });
+
+        return redirect()
+            ->route('remote.apps.index')
+            ->with(
+                'success',
+                "Aplikasi '{$appName}' ({$appSlug}) berhasil dihapus beserta {$stats['devices']} perangkat, {$stats['enrollments']} kode enrollment, dan {$stats['logs']} log terkait."
+            );
+    }
+
+    public function resetAll(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $stats = DB::transaction(function () use ($user): array {
+            $appIds = ManagedApp::where(fn ($q) => $q->where('owner_id', $user->id)->orWhereNull('owner_id'))
+                ->pluck('id');
+
+            $deviceIds = $appIds->isNotEmpty()
+                ? AppDevice::whereIn('managed_app_id', $appIds)->pluck('id')
+                : collect();
+
+            $commandsDeleted = 0;
+            if ($deviceIds->isNotEmpty()) {
+                DeviceHeartbeat::whereIn('device_id', $deviceIds)->delete();
+                ServiceStatus::whereIn('device_id', $deviceIds)->delete();
+                $commandsDeleted = ServiceCommand::whereIn('device_id', $deviceIds)->delete();
+            }
+
+            $logsDeleted = ServiceLog::where(function ($q) use ($appIds, $deviceIds, $user) {
+                $q->where(function ($sub) use ($user) {
+                    $sub->whereNull('managed_app_id')
+                        ->where('actor_user_id', $user->id);
+                });
+
+                if ($appIds->isNotEmpty()) {
+                    $q->orWhereIn('managed_app_id', $appIds);
+                }
+
+                if ($deviceIds->isNotEmpty()) {
+                    $q->orWhereIn('device_id', $deviceIds);
+                }
+            })->delete();
+
+            $enrollmentsDeleted = 0;
+            $devicesDeleted = 0;
+            $appsDeleted = 0;
+
+            if ($appIds->isNotEmpty()) {
+                ServiceConfig::whereIn('managed_app_id', $appIds)
+                    ->update(['previous_version_id' => null]);
+                ServiceConfig::whereIn('managed_app_id', $appIds)->delete();
+                $enrollmentsDeleted = DeviceEnrollment::whereIn('managed_app_id', $appIds)->delete();
+                AppRelease::whereIn('managed_app_id', $appIds)->delete();
+                $devicesDeleted = AppDevice::whereIn('managed_app_id', $appIds)->delete();
+                $appsDeleted = ManagedApp::whereIn('id', $appIds)->delete();
+            }
+
+            return [
+                'apps' => $appsDeleted,
+                'devices' => $devicesDeleted,
+                'enrollments' => $enrollmentsDeleted,
+                'commands' => $commandsDeleted,
+                'logs' => $logsDeleted,
+            ];
+        });
+
+        $totalRemoved = array_sum($stats);
+        if ($totalRemoved === 0) {
+            return redirect()
+                ->route('remote.apps.index')
+                ->with('success', 'Data Remote Service Manager sudah bersih (tidak ada data uji coba yang perlu dihapus).');
+        }
+
+        return redirect()
+            ->route('remote.apps.index')
+            ->with(
+                'success',
+                "Reset Fresh selesai! Dihapus: {$stats['apps']} aplikasi, {$stats['devices']} perangkat, {$stats['enrollments']} kode enrollment, {$stats['commands']} riwayat command, dan {$stats['logs']} log. Akun Admin & proyek App Builder tetap aman."
+            );
     }
 }

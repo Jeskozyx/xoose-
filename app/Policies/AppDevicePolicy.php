@@ -23,4 +23,9 @@ class AppDevicePolicy
     {
         return $this->view($user, $device);
     }
+
+    public function delete(User $user, AppDevice $device): bool
+    {
+        return $this->view($user, $device);
+    }
 }

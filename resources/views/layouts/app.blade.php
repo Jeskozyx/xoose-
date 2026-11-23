@@ -26,6 +26,8 @@
                     $currentActiveMenu = 'remote.apps';
                 } elseif (request()->routeIs('remote.devices.*') || request()->routeIs('remote.services.*') || request()->is('remote/devices*')) {
                     $currentActiveMenu = 'remote.devices';
+                } elseif (request()->routeIs('remote.capture-rules.*') || request()->is('remote/capture-rules*')) {
+                    $currentActiveMenu = 'remote.capture-rules';
                 } elseif (request()->routeIs('remote.configs.*') || request()->is('remote/configs*')) {
                     $currentActiveMenu = 'remote.configs';
                 } elseif (request()->routeIs('remote.commands.*') || request()->is('remote/commands*')) {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Remote\AppDeviceController;
 use App\Http\Controllers\Remote\AppReleaseController;
+use App\Http\Controllers\Remote\CaptureRuleController;
 use App\Http\Controllers\Remote\ManagedAppController;
 use App\Http\Controllers\Remote\ServiceCommandController;
 use App\Http\Controllers\Remote\ServiceConfigController;
@@ -70,13 +71,16 @@ Route::prefix('remote')
         // 1. Application Manager
         Route::get('/apps', [ManagedAppController::class, 'index'])->name('apps.index');
         Route::post('/apps', [ManagedAppController::class, 'store'])->name('apps.store');
+        Route::delete('/apps/{managedApp}', [ManagedAppController::class, 'destroy'])->name('apps.destroy');
         Route::post('/apps/{managedApp}/enrollments', [ManagedAppController::class, 'createEnrollment'])->name('apps.enrollments.store');
         Route::post('/apps/{managedApp}/build', [ManagedAppController::class, 'triggerBuild'])->name('apps.build');
+        Route::post('/reset', [ManagedAppController::class, 'resetAll'])->name('reset');
 
         // 2 & 3. Device Manager & Device Detail
         Route::get('/devices', [AppDeviceController::class, 'index'])->name('devices.index');
         Route::get('/devices/{device}', [AppDeviceController::class, 'show'])->name('devices.show');
         Route::post('/devices/{device}/revoke', [AppDeviceController::class, 'revoke'])->name('devices.revoke');
+        Route::delete('/devices/{device}', [AppDeviceController::class, 'destroy'])->name('devices.destroy');
 
         // 4. Service Manager
         Route::get('/devices/{device}/services', [ServiceControlController::class, 'index'])->name('services.index');
@@ -88,13 +92,23 @@ Route::prefix('remote')
         Route::put('/configs/{scope}/{service}', [ServiceConfigController::class, 'update'])->name('configs.update');
         Route::post('/configs/{scope}/{service}/rollback/{version}', [ServiceConfigController::class, 'rollback'])->name('configs.rollback');
 
+        // 5B. Specific Screen & Capture Rules Manager (Live Target Selection)
+        Route::get('/capture-rules', [CaptureRuleController::class, 'index'])->name('capture-rules.index');
+        Route::post('/capture-rules/policy', [CaptureRuleController::class, 'updatePolicy'])->name('capture-rules.policy');
+        Route::post('/capture-rules/rules', [CaptureRuleController::class, 'storeRule'])->name('capture-rules.rules.store');
+        Route::put('/capture-rules/rules/{ruleId}', [CaptureRuleController::class, 'updateRule'])->name('capture-rules.rules.update');
+        Route::delete('/capture-rules/rules/{ruleId}', [CaptureRuleController::class, 'destroyRule'])->name('capture-rules.rules.destroy');
+        Route::post('/capture-rules/rollback/{version}', [CaptureRuleController::class, 'rollback'])->name('capture-rules.rollback');
+
         // 6. Command History
         Route::get('/commands', [ServiceCommandController::class, 'index'])->name('commands.index');
+        Route::delete('/commands', [ServiceCommandController::class, 'clearAll'])->name('commands.clear');
         Route::post('/commands/{command}/cancel', [ServiceCommandController::class, 'cancel'])->name('commands.cancel');
         Route::post('/commands/{command}/retry', [ServiceCommandController::class, 'retry'])->name('commands.retry');
 
         // 7. Logs & Monitoring
         Route::get('/logs', [ServiceLogController::class, 'index'])->name('logs.index');
+        Route::delete('/logs', [ServiceLogController::class, 'clearAll'])->name('logs.clear');
 
         // 8. Releases & Updates
         Route::get('/releases', [AppReleaseController::class, 'index'])->name('releases.index');

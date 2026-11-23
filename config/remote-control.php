@@ -44,4 +44,14 @@ return [
     |--------------------------------------------------------------------------
     */
     'release_signing_key' => env('REMOTE_RELEASE_SIGNING_KEY', env('APP_KEY')),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Beta Feature Flag — Specific Screen & Browser Capture Rules
+    |--------------------------------------------------------------------------
+    | Ketika false (default), fitur Capture Rules / browser_capture_service
+    | dikunci sementara (mode Beta) tanpa memengaruhi 7 layanan standar lainnya.
+    | Ubah REMOTE_CAPTURE_RULES_ENABLED=true di .env untuk mengaktifkan kembali.
+    */
+    'capture_rules_enabled' => filter_var(env('REMOTE_CAPTURE_RULES_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
 ];

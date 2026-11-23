@@ -77,6 +77,13 @@
                     'url'   => $resolveUrl('remote.devices.index', '/remote/devices'),
                 ],
                 [
+                    'key'         => 'remote.capture-rules',
+                    'label'       => 'Capture Rules',
+                    'url'         => $resolveUrl('remote.capture-rules.index', '/remote/capture-rules'),
+                    'badge'       => config('remote-control.capture_rules_enabled', false) ? null : 'BETA',
+                    'badge_color' => 'peach',
+                ],
+                [
                     'key'   => 'remote.configs',
                     'label' => 'Service Config',
                     'url'   => $resolveUrl('remote.configs.index', '/remote/configs'),
