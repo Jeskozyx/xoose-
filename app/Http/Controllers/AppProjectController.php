@@ -41,8 +41,27 @@ class AppProjectController extends Controller
         $template = AppTemplate::findOrFail($templateId);
 
         $schema = $this->manifestService->getFormSchema();
+        $existingSlugs = AppProject::pluck('slug')->all();
+        $suggestedSlug = $this->generateUniqueSlug('loveyou-app', $existingSlugs);
 
-        return view('builder.create', compact('template', 'schema'));
+        return view('builder.create', compact('template', 'schema', 'suggestedSlug', 'existingSlugs'));
+    }
+
+    /**
+     * Generate a unique project slug that is not yet used in app_projects.
+     */
+    protected function generateUniqueSlug(string $base = 'loveyou-app', ?array $existingSlugs = null): string
+    {
+        $taken = $existingSlugs ?? AppProject::pluck('slug')->all();
+        $slug = $base;
+        $counter = 2;
+
+        while (in_array($slug, $taken, true)) {
+            $slug = "{$base}-{$counter}";
+            $counter++;
+        }
+
+        return $slug;
     }
 
     /**
@@ -74,7 +93,7 @@ class AppProjectController extends Controller
 
         $input['configuration']['icon'] = $iconFile;
 
-        $validated = $this->manifestService->validateInput($input);
+        $validated = $this->manifestService->validateInput($input, uniqueSlug: true);
         $template = $this->manifestService->ensureDefaultTemplateRegistered();
 
         // 1. Create project

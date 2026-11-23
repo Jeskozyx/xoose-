@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AppTemplate;
 use Illuminate\Support\Facades\File;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -87,12 +88,17 @@ class TemplateManifestService
     /**
      * Validate project configuration input according to manifest schema.
      */
-    public function validateInput(array $data): array
+    public function validateInput(array $data, bool $uniqueSlug = false, ?int $ignoreProjectId = null): array
     {
         $manifest = $this->getTemplateManifest();
+        $slugRules = ['required', 'string', 'min:3', 'max:64', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/'];
+        if ($uniqueSlug) {
+            $slugRules[] = Rule::unique('app_projects', 'slug')->ignore($ignoreProjectId);
+        }
+
         $rules = [
             'name' => 'required|string|min:3|max:100',
-            'slug' => ['required', 'string', 'min:3', 'max:64', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/'],
+            'slug' => $slugRules,
             'features' => 'nullable|array',
             'configuration' => 'nullable|array',
             'configuration.icon' => 'nullable|string',
@@ -140,6 +146,7 @@ class TemplateManifestService
 
         $validator = validator($data, $rules, [
             'slug.regex' => 'Slug hanya boleh memuat huruf kecil, angka, dan tanda hubung tunggal (contoh: my-app-1).',
+            'slug.unique' => 'Slug proyek sudah digunakan oleh proyek lain. Silakan gunakan slug yang berbeda.',
         ]);
 
         if ($validator->fails()) {

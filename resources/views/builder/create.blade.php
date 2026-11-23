@@ -61,12 +61,16 @@
                         type="text"
                         name="slug"
                         id="slug"
-                        value="{{ old('slug', 'loveyou-app') }}"
+                        value="{{ old('slug', $suggestedSlug ?? 'loveyou-app') }}"
                         required
                         pattern="^[a-z0-9]+(-[a-z0-9]+)*$"
-                        class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                        placeholder="loveyou-app"
+                        class="w-full px-3.5 py-2.5 rounded-xl border {{ $errors->has('slug') ? 'border-rose-400 focus:ring-rose-500' : 'border-gray-300 focus:ring-black' }} text-sm font-mono focus:outline-none focus:ring-2 focus:border-transparent"
+                        placeholder="{{ $suggestedSlug ?? 'loveyou-app' }}"
                     >
+                    @error('slug')
+                        <span class="text-[11px] text-rose-600 font-medium mt-1 block">{{ $message }}</span>
+                    @enderror
+                    <span id="slug-duplicate-warning" class="hidden text-[11px] text-rose-600 font-medium mt-1">Slug ini sudah digunakan oleh proyek lain. Silakan ubah atau tambahkan angka (contoh: {{ $suggestedSlug ?? 'loveyou-app-2' }}).</span>
                     <span class="text-[11px] text-gray-400 mt-1 block">Hanya huruf kecil, angka, dan tanda hubung (-) tanpa spasi.</span>
                 </div>
             </div>
@@ -243,22 +247,52 @@
         });
     });
 
-    // Auto-generate slug from name if slug not manually edited
+    // Auto-generate unique slug from name if slug not manually edited + live duplicate check
     const nameInput = document.getElementById('name');
     const slugInput = document.getElementById('slug');
+    const slugDuplicateWarning = document.getElementById('slug-duplicate-warning');
+    const existingSlugs = new Set(@json($existingSlugs ?? []));
     let slugManual = false;
 
-    slugInput.addEventListener('input', () => { slugManual = true; });
+    function deduplicateSlug(base) {
+        if (!base) return '';
+        let candidate = base;
+        let counter = 2;
+        while (existingSlugs.has(candidate)) {
+            candidate = `${base}-${counter}`;
+            counter++;
+        }
+        return candidate;
+    }
+
+    function checkSlugDuplicate() {
+        const current = (slugInput.value || '').trim().toLowerCase();
+        const isDuplicate = current !== '' && existingSlugs.has(current);
+        if (slugDuplicateWarning) {
+            slugDuplicateWarning.classList.toggle('hidden', !isDuplicate);
+        }
+        slugInput.classList.toggle('border-rose-400', isDuplicate);
+        slugInput.classList.toggle('border-gray-300', !isDuplicate);
+    }
+
+    slugInput.addEventListener('input', () => {
+        slugManual = true;
+        checkSlugDuplicate();
+    });
 
     nameInput.addEventListener('input', () => {
         if (!slugManual) {
-            slugInput.value = nameInput.value
+            const rawSlug = nameInput.value
                 .toLowerCase()
                 .trim()
                 .replace(/[^a-z0-9]+/g, '-')
                 .replace(/^-+|-+$/g, '');
+            slugInput.value = deduplicateSlug(rawSlug);
+            checkSlugDuplicate();
         }
     });
+
+    checkSlugDuplicate();
 
     // Two-way sync between Teks Tanggal Undangan, Kalender Picker, & Target Waktu Countdown
     (function() {

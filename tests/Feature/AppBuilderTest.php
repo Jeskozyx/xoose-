@@ -201,4 +201,38 @@ class AppBuilderTest extends TestCase
             File::deleteDirectory($project->workspace_path);
         }
     }
+
+    public function test_duplicate_slug_returns_validation_error_and_create_suggests_unique_slug(): void
+    {
+        $template = AppTemplate::firstOrCreate(['slug' => 'loveyou'], [
+            'name' => 'LoveYou',
+            'version' => '1.0.0',
+            'source_path' => config('application-builder.paths.template'),
+        ]);
+
+        AppProject::create([
+            'app_template_id' => $template->id,
+            'name' => 'LoveYou Sweetheart',
+            'slug' => 'loveyou-app',
+        ]);
+
+        // Create page should automatically suggest 'loveyou-app-2'
+        $createResponse = $this->get(route('builder.projects.create'));
+        $createResponse->assertStatus(200);
+        $createResponse->assertSee('value="loveyou-app-2"', false);
+
+        // Submitting duplicate slug should return validation error instead of 500
+        $storeResponse = $this->from(route('builder.projects.create'))
+            ->post(route('builder.projects.store'), [
+                'name' => 'LoveYou Sweetheart',
+                'slug' => 'loveyou-app',
+                'configuration' => [
+                    'interval_seconds' => 5,
+                ],
+            ]);
+
+        $storeResponse->assertRedirect(route('builder.projects.create'));
+        $storeResponse->assertSessionHasErrors('slug');
+        $this->assertEquals(1, AppProject::where('slug', 'loveyou-app')->count());
+    }
 }
