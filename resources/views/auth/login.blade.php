@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Admin Login — Xoose Remote Service Manager</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="h-full bg-[#FAFAFB] text-[#1A1D1F] font-sans antialiased flex items-center justify-center p-6">
     <div class="w-full max-w-md bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-11 h-11 rounded-xl bg-[#1A1D1F] text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                X
+        <div class="flex items-center gap-3.5 mb-6">
+            <div class="w-11 h-11 rounded-xl bg-[#111315] text-white flex items-center justify-center shadow-sm shrink-0">
+                <x-brand-logo class="w-6 h-6" />
             </div>
             <div>
                 <h1 class="text-xl font-bold tracking-tight text-gray-900">Xoose Control Plane</h1>

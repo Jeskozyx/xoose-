@@ -7,6 +7,7 @@ use App\Models\AppDevice;
 use App\Models\ManagedApp;
 use App\Models\ServiceConfig;
 use App\Models\ServiceDefinition;
+use App\Services\Remote\CommandDispatcherService;
 use App\Services\Remote\ConfigVersionService;
 use App\Services\Remote\DeviceEnrollmentService;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +21,7 @@ class ServiceConfigController extends Controller
     public function __construct(
         private readonly ConfigVersionService $configVersionService,
         private readonly DeviceEnrollmentService $enrollmentService,
+        private readonly CommandDispatcherService $commandDispatcher,
     ) {}
 
     /**
@@ -66,14 +68,14 @@ class ServiceConfigController extends Controller
     {
         if (str_starts_with($scope, 'device-')) {
             $deviceId = (int) substr($scope, 7);
-            $device = AppDevice::with('managedApp')->findOrFail($deviceId);
+            $device = AppDevice::with('managedApp.project')->findOrFail($deviceId);
             Gate::authorize('view', $device);
 
             return ['app' => $device->managedApp, 'device' => $device];
         }
 
         $appId = str_starts_with($scope, 'app-') ? (int) substr($scope, 4) : (int) $scope;
-        $app = ManagedApp::findOrFail($appId);
+        $app = ManagedApp::with('project')->findOrFail($appId);
         Gate::authorize('view', $app);
 
         return ['app' => $app, 'device' => null];
@@ -96,15 +98,10 @@ class ServiceConfigController extends Controller
 
         $activeConfig = $history->firstWhere('is_active', true) ?? $history->first();
 
-        // Gabungkan default skema dengan nilai aktif terbaru agar form mudah diisi
-        $schemaProps = $definition->configuration_schema['properties'] ?? [];
-        $defaults = [];
-        foreach ($schemaProps as $k => $prop) {
-            if (array_key_exists('default', $prop)) {
-                $defaults[$k] = $prop['default'];
-            }
-        }
-        $currentValues = array_merge($defaults, $activeConfig?->config_json ?? []);
+        // Selesaikan pewarisan konfigurasi penuh:
+        // Default Skema -> Baseline App Builder -> App Active Config -> Device Override Config
+        $editorState = $this->configVersionService->resolveEditorState($managedApp, $definition, $device);
+        $currentValues = $editorState['effective_values'];
 
         $apps = ManagedApp::where(fn ($q) => $q->where('owner_id', $user->id)->orWhereNull('owner_id'))
             ->orderBy('name')
@@ -128,6 +125,7 @@ class ServiceConfigController extends Controller
             'activeConfig' => $activeConfig,
             'history' => $history,
             'currentValues' => $currentValues,
+            'editorState' => $editorState,
         ]);
     }
 
@@ -232,5 +230,78 @@ class ServiceConfigController extends Controller
         return redirect()
             ->route('remote.configs.edit', ['scope' => $scope, 'service' => $service])
             ->with('success', "Rollback ke snapshot v{$version} berhasil diterbitkan sebagai v{$rolled->config_version}.");
+    }
+
+    /**
+     * POST /remote/configs/{scope}/restart-ui
+     * Mengirim perintah remote `restart` ke `ui_service` untuk perangkat target (scope device)
+     * atau seluruh perangkat aktif milik aplikasi (scope app).
+     */
+    public function restartUiService(Request $request, string $scope): RedirectResponse
+    {
+        $this->enrollmentService->ensureDefaultServiceDefinitions();
+        ['app' => $managedApp, 'device' => $device] = $this->resolveScope($scope);
+
+        if ($device !== null) {
+            Gate::authorize('control', $device);
+
+            try {
+                $command = $this->commandDispatcher->dispatch(
+                    device: $device,
+                    serviceKey: 'ui_service',
+                    action: 'restart',
+                    payload: ['source' => 'service_config'],
+                    actor: $request->user(),
+                );
+            } catch (ValidationException $e) {
+                $firstErr = collect($e->errors())->flatten()->first() ?? 'Perintah restart UI Service ditolak.';
+
+                return back()->with('error', $firstErr);
+            }
+
+            return back()->with(
+                'success',
+                "Perintah 'restart' untuk UI Service telah dikirim ke perangkat '{$device->hostname}' (ID: {$command->command_id})."
+            );
+        }
+
+        Gate::authorize('update', $managedApp);
+
+        $activeDevices = AppDevice::where('managed_app_id', $managedApp->id)
+            ->whereNull('revoked_at')
+            ->where('status', '!=', AppDevice::STATUS_REVOKED)
+            ->get();
+
+        if ($activeDevices->isEmpty()) {
+            return back()->with(
+                'error',
+                "Belum ada perangkat aktif yang terdaftar pada aplikasi '{$managedApp->name}' untuk menerima perintah Restart UI Service."
+            );
+        }
+
+        $dispatchedCount = 0;
+        foreach ($activeDevices as $targetDevice) {
+            try {
+                $this->commandDispatcher->dispatch(
+                    device: $targetDevice,
+                    serviceKey: 'ui_service',
+                    action: 'restart',
+                    payload: ['source' => 'service_config'],
+                    actor: $request->user(),
+                );
+                $dispatchedCount++;
+            } catch (ValidationException) {
+                continue;
+            }
+        }
+
+        if ($dispatchedCount === 0) {
+            return back()->with('error', 'Gagal mengirim perintah Restart UI Service ke perangkat aktif.');
+        }
+
+        return back()->with(
+            'success',
+            "Perintah 'restart' untuk UI Service telah dikirim ke {$dispatchedCount} perangkat aktif pada aplikasi '{$managedApp->name}'."
+        );
     }
 }

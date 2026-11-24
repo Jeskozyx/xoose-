@@ -91,6 +91,7 @@ Route::prefix('remote')
         Route::get('/configs/{scope}/{service}', [ServiceConfigController::class, 'edit'])->name('configs.edit');
         Route::put('/configs/{scope}/{service}', [ServiceConfigController::class, 'update'])->name('configs.update');
         Route::post('/configs/{scope}/{service}/rollback/{version}', [ServiceConfigController::class, 'rollback'])->name('configs.rollback');
+        Route::post('/configs/{scope}/restart-ui', [ServiceConfigController::class, 'restartUiService'])->name('configs.restart-ui');
 
         // 5B. Specific Screen & Capture Rules Manager (Live Target Selection)
         Route::get('/capture-rules', [CaptureRuleController::class, 'index'])->name('capture-rules.index');

@@ -225,6 +225,13 @@ class AppProjectController extends Controller
             'configuration' => $validated['configuration'] ?? [],
         ]);
 
+        // Sinkronkan baseline default_config pada ManagedApp jika proyek terhubung ke Remote Manager
+        if ($project->managedApp) {
+            $project->managedApp->update([
+                'default_config' => app(\App\Services\Remote\ConfigVersionService::class)->extractAllBuilderBaselines($project),
+            ]);
+        }
+
         // Resync workspace
         try {
             $this->workspaceService->syncWorkspace($project, force: true);

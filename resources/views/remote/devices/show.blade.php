@@ -86,7 +86,7 @@
     {{-- Status & Kontrol Cepat Seluruh Service --}}
     <div class="mt-8">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-gray-900">Status Layanan Modular (7 Services)</h2>
+            <h2 class="text-base font-bold text-gray-900">Status Layanan Modular ({{ $definitions->count() }} Services)</h2>
             <a href="{{ route('remote.services.index', $device) }}" class="text-xs font-semibold text-gray-600 hover:text-gray-900">Kelola Detail →</a>
         </div>
 

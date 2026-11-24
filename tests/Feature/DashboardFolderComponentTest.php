@@ -7,13 +7,19 @@ use Tests\TestCase;
 class DashboardFolderComponentTest extends TestCase
 {
     /**
-     * Test bahwa halaman dashboard tidak menampilkan data dummy saat database kosong.
+     * Test bahwa halaman dashboard tidak menampilkan data dummy atau elemen template palsu.
      */
     public function test_dashboard_renders_no_dummy_data_when_empty(): void
     {
         $response = $this->get('/');
 
         $response->assertStatus(200);
+        $response->assertSee('Overview');
+        $response->assertSee('User Folders');
+        $response->assertSee('App Builder');
+        $response->assertSee('Remote Control');
+        $response->assertDontSee('My Workflows');
+        $response->assertDontSee('Credits remaining');
         $response->assertDontSee('Task Automation');
         $response->assertDontSee('Notes & Highlights');
         $response->assertDontSee('Billing & Invoicing');
@@ -59,5 +65,37 @@ class DashboardFolderComponentTest extends TestCase
         $response->assertSee('Device Name');
         $response->assertSee('Resolution');
         $response->assertSee('Status');
+    }
+
+    /**
+     * Test bahwa halaman folders menampilkan timestamp dengan jam, menit, dan detik (WIB).
+     */
+    public function test_folders_page_displays_seconds_in_screenshot_timestamp(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            '*/user_responses*' => \Illuminate\Support\Facades\Http::response([
+                ['id' => 1, 'nama' => 'Roedi', 'status' => 'yes', 'tanggal_date' => '2026-11-24'],
+            ], 200),
+            '*/hasil_ss*' => \Illuminate\Support\Facades\Http::response([
+                [
+                    'id' => 10,
+                    'user_name' => 'Roedi',
+                    'filename' => 'cap_10.webp',
+                    'active_window' => 'Chrome',
+                    'resolution' => '1920x1080',
+                    'file_size_kb' => 24.5,
+                    'status' => 'success',
+                    'image_url' => 'https://example.com/cap_10.webp',
+                    'created_at' => '2026-11-24T16:27:49Z',
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->get('/folders?folder=Roedi');
+
+        $response->assertStatus(200);
+        // 16:27:49 UTC == 23:27:49 WIB
+        $response->assertSee('23:27:49 WIB');
+        $response->assertSee('${hour}:${minute}:${second} WIB', false);
     }
 }

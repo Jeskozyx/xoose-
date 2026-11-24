@@ -1,6 +1,6 @@
 {{--
     ==========================================================================
-    Halaman Folders Detail — Menampilkan Data Tangkapan Layar (hasil_ss) Realtime
+    Halaman Folders Detail — Galeri Tangkapan Layar (hasil_ss) Realtime
     Terkonfigurasi Terisolasi per User (user_name)
     Path: resources/views/folders.blade.php
     Extends: layouts.app (memuat sidebar, vite css/js, dll.)
@@ -13,589 +13,542 @@
 
 @php
     $activeMenu = 'folders';
+    $isAllFolders = ($folderName === 'all' || $folderName === 'hasil_ss');
+    $displayFolderTitle = $isAllFolders ? 'Semua User' : $folderName;
 @endphp
 
 @push('styles')
     <style>
-        .screenshot-card {
-            box-shadow: 0 4px 20px -6px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.03);
-            transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
-        }
-
-        .screenshot-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 14px 28px -10px rgba(16, 24, 40, 0.12), 0 2px 8px rgba(16, 24, 40, 0.04);
-        }
-
         .screenshot-img-wrapper {
             aspect-ratio: 16 / 9;
         }
 
-        .screenshot-img-wrapper img {
-            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .screenshot-card:hover .screenshot-img-wrapper img {
-            transform: scale(1.035);
-        }
-
         .filter-dropdown-menu {
             transform-origin: top right;
-            transition: opacity 0.15s ease, transform 0.15s ease;
+            transition: opacity 0.14s ease, transform 0.14s ease;
         }
 
-        /* Lightbox modal animation */
         #lightbox-modal {
-            transition: opacity 0.2s ease, visibility 0.2s ease;
+            transition: opacity 0.18s ease, visibility 0.18s ease;
         }
+
         #lightbox-modal.is-hidden {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
         }
 
-        @keyframes newCardSlide {
+        @keyframes newCardEnter {
             0% {
                 opacity: 0;
-                transform: translateY(-24px) scale(0.94);
+                transform: translateY(-10px);
             }
             100% {
                 opacity: 1;
-                transform: translateY(0) scale(1);
+                transform: translateY(0);
             }
         }
 
         .new-screenshot-highlight {
-            animation: newCardSlide 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-            box-shadow: 0 0 0 2px #3BB77E, 0 14px 28px -10px rgba(16, 24, 40, 0.15) !important;
+            animation: newCardEnter 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+            border-color: #10B981 !important;
         }
     </style>
 @endpush
 
 @section('content')
     {{-- =====================================================================
-         TOP BAR FOLDERS (Breadcrumb + User Switcher + Search ⌘ F + Stats)
+         TOP BAR — Minimalist Operational Header
          ===================================================================== --}}
-    <header class="flex items-center justify-between gap-4 px-5 sm:px-8 h-[68px] border-b border-[#F0F1F3] shrink-0 bg-white">
-        <div class="flex items-center gap-3.5 flex-1 max-w-[480px]">
-            {{-- Tombol Toggle Sidebar (Desktop & Mobile) --}}
+    <header class="flex items-center justify-between gap-4 px-5 sm:px-8 h-[62px] border-b border-[#EAECEF] bg-white shrink-0">
+        <div class="flex items-center gap-3 flex-1 min-w-0 max-w-[540px]">
             <button
                 type="button"
                 data-sidebar-toggle
-                class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[#F4F5F7] text-[#1A1D1F] hover:bg-[#EAECEF] transition-colors shrink-0 cursor-pointer"
+                class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[#E6E8EC] bg-white text-[#475467] hover:text-[#111315] hover:bg-[#F7F8FA] transition-colors shrink-0 cursor-pointer"
                 aria-label="Toggle Sidebar"
                 title="Collapse / Expand Sidebar (Ctrl+B)"
             >
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="4" width="18" height="16" rx="2.5"/>
                     <line x1="9" y1="4" x2="9" y2="20"/>
                 </svg>
             </button>
 
-            {{-- Breadcrumb Navigasi --}}
-            <nav class="flex items-center gap-2 text-[13px] text-[#6F767E] shrink-0" aria-label="Breadcrumb">
-                <a href="{{ route('dashboard') }}" class="hover:text-[#1A1D1F] transition-colors font-medium">
-                    Dashboard
-                </a>
-                <span class="text-[#D3D7DF]">/</span>
-                <span class="text-[#1A1D1F] font-semibold truncate max-w-[110px] sm:max-w-[150px]">
-                    {{ $folderName }}
-                </span>
+            <nav class="hidden md:flex items-center gap-1.5 text-[12.5px] text-[#667085] shrink-0" aria-label="Breadcrumb">
+                <a href="{{ route('dashboard') }}" class="hover:text-[#111315] transition-colors">Overview</a>
+                <span class="text-[#D0D5DD]">/</span>
+                <span class="text-[#111315] font-medium truncate max-w-[140px]">{{ $displayFolderTitle }}</span>
             </nav>
 
-            {{-- Kotak Pencarian Screenshot --}}
-            <label class="relative flex items-center w-full h-[38px] rounded-[11px] bg-[#FAFAFB] border border-[#E7E9ED] px-3 gap-2 focus-within:bg-white focus-within:border-[#CFD4DC] focus-within:ring-2 focus-within:ring-black/[0.03] transition-all cursor-text ml-1">
-                <svg class="w-[15px] h-[15px] text-[#9A9FA8] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <label class="relative flex items-center w-full h-[36px] rounded-lg bg-[#F7F8FA] border border-[#E6E8EC] px-3 gap-2 focus-within:bg-white focus-within:border-[#98A2B3] transition-colors cursor-text">
+                <svg class="w-3.5 h-3.5 text-[#8E959F] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="7"/>
                     <path d="M20 20L16.2 16.2"/>
                 </svg>
                 <input
                     id="ss-search-input"
                     type="text"
-                    placeholder="Cari window / file..."
+                    placeholder="Cari active window atau nama file..."
                     autocomplete="off"
-                    class="w-full bg-transparent text-[13px] text-[#1A1D1F] placeholder-[#9A9FA8] focus:outline-none"
+                    class="w-full bg-transparent text-[13px] text-[#111315] placeholder-[#8E959F] focus:outline-none"
                 />
+                <span class="hidden sm:inline-flex items-center shrink-0 select-none">
+                    <kbd class="inline-flex items-center justify-center px-1.5 h-[20px] rounded bg-white border border-[#E4E7EC] font-mono text-[10.5px] text-[#667085]">⌘F</kbd>
+                </span>
             </label>
         </div>
 
-        {{-- Toolbar Kanan: Switcher User, Indikator Total, & Tombol Kembali --}}
-        <div class="flex items-center gap-2.5 shrink-0">
-            {{-- Dropdown Pilih User (Switch Folder) --}}
+        <div class="flex items-center gap-2 shrink-0">
+            {{-- Switcher User / Folder --}}
             <div class="relative filter-dropdown" data-dropdown="user-switch">
                 <button
                     type="button"
-                    class="filter-trigger inline-flex items-center gap-1.5 h-[34px] px-3 rounded-xl bg-[#FAFAFB] hover:bg-[#F2F3F5] border border-[#E6E8EC] text-[12.5px] transition-colors font-medium text-[#1A1D1F] cursor-pointer"
+                    class="filter-trigger inline-flex items-center gap-1.5 h-[34px] px-3 rounded-lg bg-white hover:bg-[#F7F8FA] border border-[#E6E8EC] text-[12.5px] font-medium text-[#111315] transition-colors cursor-pointer"
                     title="Ganti User / Folder"
                 >
-                    <svg class="w-3.5 h-3.5 text-[#6F767E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
+                    <svg class="w-3.5 h-3.5 text-[#667085]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                     </svg>
-                    <span class="max-w-[85px] sm:max-w-[120px] truncate">{{ $folderName }}</span>
-                    <svg class="w-3.5 h-3.5 text-[#7C828D]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <span class="max-w-[90px] sm:max-w-[130px] truncate">{{ $displayFolderTitle }}</span>
+                    <svg class="w-3.5 h-3.5 text-[#8E959F]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M6 9l6 6 6-6"/>
                     </svg>
                 </button>
-                <div class="filter-dropdown-menu hidden absolute right-0 mt-1.5 w-56 bg-white rounded-xl border border-[#EAECEF] shadow-lg py-1.5 z-30">
-                    <div class="px-3 py-1 text-[11px] font-semibold text-[#9A9FA8] uppercase tracking-wider">
-                        Pilih User (Folder)
+                <div class="filter-dropdown-menu hidden absolute right-0 mt-1.5 w-60 bg-white rounded-xl border border-[#E6E8EC] shadow-lg py-1.5 z-30">
+                    <div class="px-3 py-1 text-[10.5px] font-semibold text-[#8E959F] uppercase tracking-[0.07em]">
+                        User Folders
                     </div>
-                    @foreach ($folders as $f)
-                        <a
-                            href="{{ route('folders.index', ['folder' => $f['title']]) }}"
-                            class="flex items-center justify-between px-3 py-1.5 text-[12.5px] text-[#1A1D1F] hover:bg-[#F5F6F8] {{ $folderName === $f['title'] ? 'bg-[#F0F7FF] font-semibold text-[#2B78C5]' : '' }}"
-                        >
-                            <span class="truncate">{{ $f['title'] }}</span>
-                            <span class="text-[11px] px-1.5 py-0.5 rounded-full bg-[#F4F5F7] text-[#6F767E] shrink-0">
-                                {{ $f['items'] }} ss
-                            </span>
-                        </a>
-                    @endforeach
+                    <div class="max-h-60 overflow-y-auto">
+                        @foreach ($folders as $f)
+                            <a
+                                href="{{ route('folders.index', ['folder' => $f['title']]) }}"
+                                class="flex items-center justify-between gap-2 px-3 py-1.5 text-[12.5px] transition-colors {{ $folderName === $f['title'] ? 'bg-[#F4F5F7] font-semibold text-[#111315]' : 'text-[#475467] hover:bg-[#FAFAFB] hover:text-[#111315]' }}"
+                            >
+                                <span class="truncate">{{ $f['title'] }}</span>
+                                <span class="font-mono text-[11px] text-[#667085] tabular-nums shrink-0">{{ $f['items'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
                     <div class="border-t border-[#F0F1F3] my-1"></div>
                     <a
                         href="{{ route('folders.index', ['folder' => 'all']) }}"
-                        class="flex items-center justify-between px-3 py-1.5 text-[12px] text-[#6F767E] hover:text-[#1A1D1F] hover:bg-[#F5F6F8] {{ $folderName === 'all' ? 'font-semibold text-[#2B78C5]' : '' }}"
+                        class="flex items-center justify-between px-3 py-1.5 text-[12.5px] transition-colors {{ $isAllFolders ? 'bg-[#F4F5F7] font-semibold text-[#111315]' : 'text-[#667085] hover:bg-[#FAFAFB] hover:text-[#111315]' }}"
                     >
-                        <span>Semua Screenshot (All)</span>
+                        <span>Semua User (All)</span>
                     </a>
                 </div>
             </div>
 
-            {{-- Tombol Bersihkan Resource Supabase --}}
+            {{-- Status Realtime & Jumlah Screenshot --}}
+            <div
+                id="realtime-status-pill"
+                class="inline-flex items-center gap-2 h-[34px] px-3 rounded-lg border border-[#E6E8EC] bg-[#FAFAFB] text-[12px] font-medium text-[#344054]"
+                title="Supabase Realtime aktif untuk tabel hasil_ss"
+            >
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span id="ss-total-count" class="font-mono tabular-nums">{{ count($screenshots) }} ss</span>
+            </div>
+
+            {{-- Bersihkan Resource Supabase --}}
             <button
                 type="button"
-                onclick="openCleanupModal('{{ $folderName !== 'all' ? $folderName : '' }}')"
-                class="inline-flex items-center gap-1.5 h-[34px] px-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition-colors cursor-pointer"
-                title="Kelola & Bersihkan Data Supabase untuk menghemat sumber daya"
+                onclick="openCleanupModal('{{ !$isAllFolders ? $folderName : '' }}')"
+                class="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-lg border border-[#E6E8EC] hover:border-rose-200 bg-white hover:bg-rose-50 text-[#475467] hover:text-rose-700 text-[12.5px] font-medium transition-colors cursor-pointer"
+                title="Kelola & bersihkan data screenshot di Supabase"
             >
-                <svg class="w-3.5 h-3.5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 </svg>
-                <span class="hidden sm:inline">Bersihkan Data</span>
+                <span class="hidden sm:inline">Bersihkan</span>
             </button>
-
-            {{-- Badge Indikator Realtime --}}
-            <span id="realtime-status-pill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF6FE] text-[#2B78C5] text-[12.5px] font-semibold">
-                <span class="w-2 h-2 rounded-full bg-[#3BB77E] animate-pulse"></span>
-                <span id="ss-total-count">{{ count($screenshots) }} ss</span>
-            </span>
-
-            {{-- Tombol Kembali ke Dashboard --}}
-            <a
-                href="{{ route('dashboard') }}"
-                class="hidden sm:inline-flex items-center gap-1.5 px-3 h-[34px] rounded-xl border border-[#E6E8EC] hover:bg-[#FAFAFB] text-[12.5px] font-medium text-[#1A1D1F] transition-colors"
-            >
-                <svg class="w-3.5 h-3.5 text-[#6F767E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-                <span>Dashboard</span>
-            </a>
         </div>
     </header>
 
     {{-- =====================================================================
          KONTEN UTAMA GALERI TANGKAPAN LAYAR (hasil_ss)
          ===================================================================== --}}
-    <div class="flex-1 px-5 sm:px-8 py-7 overflow-y-auto">
+    <div class="flex-1 overflow-y-auto bg-white">
+        <div class="max-w-[1360px] mx-auto px-5 sm:px-8 py-7 space-y-6">
 
-        {{-- Header Judul & Toolbar Filter --}}
-        <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-7">
-            <div>
-                <div class="flex items-center gap-2.5">
-                    <h1 class="text-[26px] sm:text-[28px] font-semibold tracking-[-0.025em] text-[#1A1D1F] leading-tight">
-                        Folder Target: <span class="text-[#2B78C5]">{{ $folderName }}</span>
-                    </h1>
-                    <span id="live-indicator-pill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#DEF7EC] text-[#03543F] text-[11.5px] font-semibold">
-                        <span class="w-2 h-2 rounded-full bg-[#3BB77E] animate-ping"></span>
-                        <span>User Isolated</span>
-                    </span>
-                </div>
-                <p class="text-[13.5px] text-[#7C828D] mt-1">
-                    @if ($folderName !== 'all' && $folderName !== 'hasil_ss')
-                        Hanya menampilkan tangkapan layar milik user <strong class="text-[#1A1D1F]">{{ $folderName }}</strong>. Screenshot dari user lain tidak akan bercampur di sini.
-                    @else
-                        Menampilkan seluruh tangkapan layar dari tabel <code class="px-1.5 py-0.5 rounded bg-[#F4F5F7] text-[#1A1D1F] font-mono text-[12px]">hasil_ss</code>.
-                    @endif
-                </p>
-            </div>
+            {{-- Unified Header + Telemetry Panel (Zero Redundancy) --}}
+            <section class="rounded-xl border border-[#E6E8EC] bg-white overflow-hidden" aria-label="Detail Folder & Filter">
+                {{-- Row 1: Identitas Folder + Filter Toolbar --}}
+                <div class="px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2.5">
+                            <h1 id="detail-user-name" class="text-[20px] sm:text-[22px] font-semibold tracking-[-0.02em] text-[#111315] leading-tight truncate">
+                                {{ $displayFolderTitle }}
+                            </h1>
 
-            {{-- Filter Pills --}}
-            <div class="flex flex-wrap items-center gap-2">
-                {{-- Filter: Active Window --}}
-                <div class="relative filter-dropdown" data-filter="window">
-                    <button
-                        type="button"
-                        class="filter-trigger inline-flex items-center gap-1.5 h-[34px] px-3.5 rounded-full bg-white border border-[#E6E8EC] hover:border-[#D3D7DF] hover:bg-[#FAFAFB] text-[12.5px] transition-colors"
-                    >
-                        <span class="text-[#7C828D]">Window:</span>
-                        <span class="filter-value font-medium text-[#1A1D1F]">All</span>
-                        <svg class="w-3.5 h-3.5 text-[#7C828D] ml-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 9l6 6 6-6"/>
-                        </svg>
-                    </button>
-                    <div class="filter-dropdown-menu hidden absolute right-0 mt-1.5 w-56 max-h-64 overflow-y-auto bg-white rounded-xl border border-[#EAECEF] shadow-lg py-1 z-30">
-                        <button type="button" data-value="All" class="filter-option w-full text-left px-3.5 py-1.5 text-[12.5px] text-[#1A1D1F] hover:bg-[#F5F6F8] font-semibold bg-[#F8F9FB]">
-                            All Windows
-                        </button>
-                        @foreach ($activeWindows as $w)
-                            <button type="button" data-value="{{ $w }}" class="filter-option w-full text-left px-3.5 py-1.5 text-[12.5px] text-[#1A1D1F] hover:bg-[#F5F6F8] truncate" title="{{ $w }}">
-                                {{ $w }}
-                            </button>
-                        @endforeach
-                    </div>
-                </div>
+                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#F4F5F7] border border-[#EAECEF] text-[11px] font-medium text-[#475467]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                <span>{{ $isAllFolders ? 'Semua Folder' : 'Terisolasi per User' }}</span>
+                            </span>
 
-                {{-- Filter: Status --}}
-                <div class="relative filter-dropdown" data-filter="status">
-                    <button
-                        type="button"
-                        class="filter-trigger inline-flex items-center gap-1.5 h-[34px] px-3.5 rounded-full bg-white border border-[#E6E8EC] hover:border-[#D3D7DF] hover:bg-[#FAFAFB] text-[12.5px] transition-colors"
-                    >
-                        <span class="text-[#7C828D]">Status:</span>
-                        <span class="filter-value font-medium text-[#1A1D1F]">All</span>
-                        <svg class="w-3.5 h-3.5 text-[#7C828D] ml-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 9l6 6 6-6"/>
-                        </svg>
-                    </button>
-                    <div class="filter-dropdown-menu hidden absolute right-0 mt-1.5 w-36 bg-white rounded-xl border border-[#EAECEF] shadow-lg py-1 z-30">
-                        @foreach (['All', 'success', 'pending', 'failed'] as $opt)
-                            <button type="button" data-value="{{ $opt }}" class="filter-option w-full text-left px-3.5 py-1.5 text-[12.5px] text-[#1A1D1F] hover:bg-[#F5F6F8] {{ $opt === 'All' ? 'font-semibold bg-[#F8F9FB]' : '' }}">
-                                {{ ucfirst($opt) }}
-                            </button>
-                        @endforeach
-                    </div>
-                </div>
-
-                {{-- Filter: Sorting --}}
-                <div class="relative filter-dropdown" data-filter="sort">
-                    <button
-                        type="button"
-                        class="filter-trigger inline-flex items-center gap-1.5 h-[34px] px-3.5 rounded-full bg-white border border-[#E6E8EC] hover:border-[#D3D7DF] hover:bg-[#FAFAFB] text-[12.5px] transition-colors"
-                    >
-                        <span class="text-[#7C828D]">Urutkan:</span>
-                        <span class="filter-value font-medium text-[#1A1D1F]">Terbaru</span>
-                        <svg class="w-3.5 h-3.5 text-[#7C828D] ml-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 9l6 6 6-6"/>
-                        </svg>
-                    </button>
-                    <div class="filter-dropdown-menu hidden absolute right-0 mt-1.5 w-40 bg-white rounded-xl border border-[#EAECEF] shadow-lg py-1 z-30">
-                        <button type="button" data-value="newest" class="filter-option w-full text-left px-3.5 py-1.5 text-[12.5px] text-[#1A1D1F] hover:bg-[#F5F6F8] font-semibold bg-[#F8F9FB]">
-                            Terbaru (ID Desc)
-                        </button>
-                        <button type="button" data-value="oldest" class="filter-option w-full text-left px-3.5 py-1.5 text-[12.5px] text-[#1A1D1F] hover:bg-[#F5F6F8]">
-                            Terlama (ID Asc)
-                        </button>
-                    </div>
-                </div>
-
-                {{-- Tombol Reset Filter --}}
-                <button
-                    type="button"
-                    id="reset-ss-filters"
-                    title="Reset semua filter"
-                    class="inline-flex items-center justify-center w-[34px] h-[34px] rounded-full bg-white border border-[#E6E8EC] hover:border-[#D3D7DF] hover:bg-[#FAFAFB] text-[#525866] transition-colors cursor-pointer"
-                    aria-label="Reset Filter"
-                >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                        <path d="M4 7h16"/>
-                        <path d="M7 12h10"/>
-                        <path d="M10 17h4"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        {{-- =================================================================
-             DETAIL ATAS: USER RESPONSE & HASIL_SS
-             (Nama, Device Name, Status, Resolution)
-             ================================================================= --}}
-        <div class="mb-7 bg-white rounded-[20px] border border-[#ECEEF2] p-5 sm:p-6 shadow-[0_4px_20px_-6px_rgba(16,24,40,0.04)]">
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                {{-- Detail Kiri: User & Status Respons --}}
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br from-[#EBF6FE] to-[#D8EEFC] border border-[#D0E9FA] flex items-center justify-center text-[#2B78C5] shrink-0">
-                        <svg class="w-6 h-6 sm:w-7 sm:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <h2 id="detail-user-name" class="text-[20px] sm:text-[22px] font-bold text-[#1A1D1F] tracking-[-0.02em]">
-                                {{ $folderName !== 'all' && $folderName !== 'hasil_ss' ? $folderName : 'Semua User (All)' }}
-                            </h2>
                             @if (!empty($folderUserStatus))
-                                <span id="detail-user-status" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider {{ in_array(strtolower($folderUserStatus), ['yes', 'active', 'success']) ? 'bg-[#DEF7EC] text-[#03543F]' : 'bg-[#FEF08A] text-[#854D0E]' }}">
-                                    <span class="w-1.5 h-1.5 rounded-full {{ in_array(strtolower($folderUserStatus), ['yes', 'active', 'success']) ? 'bg-[#3BB77E]' : 'bg-[#EAB308]' }}"></span>
-                                    <span>User Status: {{ $folderUserStatus }}</span>
+                                @php $isPositiveStatus = in_array(strtolower($folderUserStatus), ['yes', 'active', 'success']); @endphp
+                                <span id="detail-user-status" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium border {{ $isPositiveStatus ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80' : 'bg-amber-50 text-amber-800 border-amber-200/80' }}">
+                                    <span>Respon: {{ $folderUserStatus }}</span>
                                 </span>
                             @endif
                         </div>
-                        <p class="text-[12.5px] text-[#7C828D] mt-1 flex flex-wrap items-center gap-2">
+
+                        <p class="text-[12.5px] text-[#667085] mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                            @if (!$isAllFolders)
+                                <span>Stream <code class="font-mono text-[11.5px] text-[#344054]">hasil_ss</code> terfilter khusus <strong class="font-medium text-[#111315]">{{ $folderName }}</strong></span>
+                            @else
+                                <span>Menampilkan seluruh tangkapan layar dari tabel <code class="font-mono text-[11.5px] text-[#344054]">hasil_ss</code></span>
+                            @endif
+
                             @if (!empty($userResponse['tanggal_date']))
-                                <span class="text-[#6F767E]">Target: <strong class="text-[#1A1D1F] font-medium">{{ $userResponse['tanggal_date'] }}</strong></span>
+                                <span class="text-[#D0D5DD]">·</span>
+                                <span>Tanggal target: <span class="font-mono text-[#344054]">{{ $userResponse['tanggal_date'] }}</span></span>
                             @endif
                         </p>
                     </div>
+
+                    {{-- Filter Controls --}}
+                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        {{-- Filter: Active Window --}}
+                        <div class="relative filter-dropdown" data-filter="window">
+                            <button
+                                type="button"
+                                class="filter-trigger inline-flex items-center gap-1.5 h-[32px] px-3 rounded-lg bg-[#FAFAFB] hover:bg-[#F2F4F7] border border-[#E6E8EC] text-[12px] transition-colors cursor-pointer"
+                            >
+                                <span class="text-[#667085]">Window:</span>
+                                <span class="filter-value font-medium text-[#111315] max-w-[110px] truncate">All</span>
+                                <svg class="w-3.5 h-3.5 text-[#8E959F]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M6 9l6 6 6-6"/>
+                                </svg>
+                            </button>
+                            <div class="filter-dropdown-menu hidden absolute right-0 mt-1.5 w-60 max-h-64 overflow-y-auto bg-white rounded-xl border border-[#E6E8EC] shadow-lg py-1 z-30">
+                                <button type="button" data-value="All" class="filter-option w-full text-left px-3 py-1.5 text-[12px] text-[#111315] hover:bg-[#F7F8FA] font-semibold bg-[#F4F5F7]">
+                                    All Windows
+                                </button>
+                                @foreach ($activeWindows as $w)
+                                    <button type="button" data-value="{{ $w }}" class="filter-option w-full text-left px-3 py-1.5 text-[12px] text-[#344054] hover:bg-[#F7F8FA] truncate" title="{{ $w }}">
+                                        {{ $w }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Filter: Status --}}
+                        <div class="relative filter-dropdown" data-filter="status">
+                            <button
+                                type="button"
+                                class="filter-trigger inline-flex items-center gap-1.5 h-[32px] px-3 rounded-lg bg-[#FAFAFB] hover:bg-[#F2F4F7] border border-[#E6E8EC] text-[12px] transition-colors cursor-pointer"
+                            >
+                                <span class="text-[#667085]">Status:</span>
+                                <span class="filter-value font-medium text-[#111315]">All</span>
+                                <svg class="w-3.5 h-3.5 text-[#8E959F]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M6 9l6 6 6-6"/>
+                                </svg>
+                            </button>
+                            <div class="filter-dropdown-menu hidden absolute right-0 mt-1.5 w-36 bg-white rounded-xl border border-[#E6E8EC] shadow-lg py-1 z-30">
+                                @foreach (['All', 'success', 'pending', 'failed'] as $opt)
+                                    <button type="button" data-value="{{ $opt }}" class="filter-option w-full text-left px-3 py-1.5 text-[12px] text-[#344054] hover:bg-[#F7F8FA] {{ $opt === 'All' ? 'font-semibold bg-[#F4F5F7] text-[#111315]' : '' }}">
+                                        {{ ucfirst($opt) }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Filter: Sorting --}}
+                        <div class="relative filter-dropdown" data-filter="sort">
+                            <button
+                                type="button"
+                                class="filter-trigger inline-flex items-center gap-1.5 h-[32px] px-3 rounded-lg bg-[#FAFAFB] hover:bg-[#F2F4F7] border border-[#E6E8EC] text-[12px] transition-colors cursor-pointer"
+                            >
+                                <span class="text-[#667085]">Urutan:</span>
+                                <span class="filter-value font-medium text-[#111315]">Terbaru</span>
+                                <svg class="w-3.5 h-3.5 text-[#8E959F]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M6 9l6 6 6-6"/>
+                                </svg>
+                            </button>
+                            <div class="filter-dropdown-menu hidden absolute right-0 mt-1.5 w-44 bg-white rounded-xl border border-[#E6E8EC] shadow-lg py-1 z-30">
+                                <button type="button" data-value="newest" data-label="Terbaru" class="filter-option w-full text-left px-3 py-1.5 text-[12px] text-[#111315] hover:bg-[#F7F8FA] font-semibold bg-[#F4F5F7]">
+                                    Terbaru (ID Desc)
+                                </button>
+                                <button type="button" data-value="oldest" data-label="Terlama" class="filter-option w-full text-left px-3 py-1.5 text-[12px] text-[#344054] hover:bg-[#F7F8FA]">
+                                    Terlama (ID Asc)
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Reset Filter --}}
+                        <button
+                            type="button"
+                            id="reset-ss-filters"
+                            title="Reset semua filter"
+                            aria-label="Reset Filter"
+                            class="inline-flex items-center justify-center w-[32px] h-[32px] rounded-lg bg-white hover:bg-[#F4F5F7] border border-[#E6E8EC] text-[#667085] hover:text-[#111315] transition-colors cursor-pointer"
+                        >
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/>
+                                <path d="M3 3v5h5"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
-                {{-- Detail Kanan: 3 Grid Box Metrics (Device Name, Resolution, SS Status) --}}
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 lg:min-w-[480px]">
-                    {{-- Metric 1: Device Name --}}
-                    <div class="px-4 py-3 rounded-xl bg-[#FAFAFB] border border-[#EBECEF] flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-white border border-[#E2E4E9] flex items-center justify-center text-[#525866] shrink-0 shadow-sm">
-                            <svg class="w-4.5 h-4.5 text-[#525866]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="2" y="3" width="20" height="14" rx="2"/>
-                                <line x1="8" y1="21" x2="16" y2="21"/>
-                                <line x1="12" y1="17" x2="12" y2="21"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <span class="block text-[11px] text-[#7C828D] uppercase font-semibold tracking-wider">Device Name</span>
-                            <span id="detail-device-name" class="block text-[13px] font-semibold text-[#1A1D1F] truncate transition-colors" title="{{ $folderDeviceName ?? 'Menunggu koneksi device...' }}">
-                                {{ $folderDeviceName ?? 'Menunggu...' }}
-                            </span>
-                        </div>
+                {{-- Row 2: Segmented Metadata Strip (Device Name, Resolution, Status) --}}
+                <div class="grid grid-cols-1 sm:grid-cols-3 border-t border-[#EAECEF] bg-[#FAFAFB]/70 divide-y sm:divide-y-0 sm:divide-x divide-[#EAECEF]">
+                    <div class="px-5 py-3 flex items-center justify-between gap-3">
+                        <span class="text-[11.5px] font-medium text-[#667085]">Device Name</span>
+                        <span id="detail-device-name" class="font-mono text-[12.5px] font-medium text-[#111315] truncate transition-colors" title="{{ $folderDeviceName ?? 'Menunggu koneksi device...' }}">
+                            {{ $folderDeviceName ?? 'Menunggu...' }}
+                        </span>
                     </div>
 
-                    {{-- Metric 2: Resolution --}}
-                    <div class="px-4 py-3 rounded-xl bg-[#FAFAFB] border border-[#EBECEF] flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-white border border-[#E2E4E9] flex items-center justify-center text-[#525866] shrink-0 shadow-sm">
-                            <svg class="w-4.5 h-4.5 text-[#525866]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                <path d="M3 9h18M9 21V9"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <span class="block text-[11px] text-[#7C828D] uppercase font-semibold tracking-wider">Resolution</span>
-                            <span id="detail-resolution" class="block text-[13px] font-semibold font-mono text-[#1A1D1F] truncate transition-colors" title="{{ $folderResolution ?? 'Menunggu resolusi...' }}">
-                                {{ $folderResolution ?? 'Menunggu...' }}
-                            </span>
-                        </div>
+                    <div class="px-5 py-3 flex items-center justify-between gap-3">
+                        <span class="text-[11.5px] font-medium text-[#667085]">Resolution</span>
+                        <span id="detail-resolution" class="font-mono text-[12.5px] font-medium text-[#111315] tabular-nums truncate transition-colors" title="{{ $folderResolution ?? 'Menunggu resolusi...' }}">
+                            {{ $folderResolution ?? 'Menunggu...' }}
+                        </span>
                     </div>
 
-                    {{-- Metric 3: Status SS --}}
-                    <div class="px-4 py-3 rounded-xl bg-[#FAFAFB] border border-[#EBECEF] flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-white border border-[#E2E4E9] flex items-center justify-center text-[#3BB77E] shrink-0 shadow-sm">
-                            <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                <polyline points="22 4 12 14.01 9 11.01"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <span class="block text-[11px] text-[#7C828D] uppercase font-semibold tracking-wider">Status</span>
-                            <span id="detail-ss-status" class="block text-[13px] font-semibold capitalize {{ strtolower($folderSsStatus ?? 'active') === 'success' ? 'text-[#03543F]' : 'text-[#854D0E]' }} truncate transition-colors">
+                    <div class="px-5 py-3 flex items-center justify-between gap-3">
+                        <span class="text-[11.5px] font-medium text-[#667085]">Status</span>
+                        <span class="inline-flex items-center gap-1.5 min-w-0">
+                            <span class="w-1.5 h-1.5 rounded-full shrink-0 {{ strtolower($folderSsStatus ?? 'active') === 'failed' ? 'bg-rose-500' : 'bg-emerald-500' }}"></span>
+                            <span id="detail-ss-status" class="text-[12.5px] font-medium capitalize text-[#111315] truncate transition-colors">
                                 {{ $folderSsStatus ?? 'Active' }}
                             </span>
-                        </div>
+                        </span>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        {{-- =================================================================
-             GRID GALLERY SCREENSHOTS
-             ================================================================= --}}
-        <div
-            id="screenshots-grid"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
-        >
-            @forelse ($screenshots as $ss)
-                @php
-                    $imgUrl = $ss['image_url'] ?? '';
-                    $filename = $ss['filename'] ?? ('screenshot_' . $ss['id'] . '.png');
-                    $activeWindow = !empty(trim((string)($ss['active_window'] ?? ''))) ? $ss['active_window'] : 'General Desktop';
-                    $resolution = $ss['resolution'] ?? '1920x1080';
-                    $fileSize = isset($ss['file_size_kb']) ? number_format((float)$ss['file_size_kb'], 1) . ' KB' : '-';
-                    $ssUser = $ss['user_name'] ?? 'unknown';
-                    
-                    // Format Jam Indonesia (WIB - Asia/Jakarta)
-                    $createdAt = !empty($ss['created_at'])
-                        ? \Illuminate\Support\Carbon::parse($ss['created_at'])->setTimezone('Asia/Jakarta')->locale('id')->translatedFormat('d M Y, H:i') . ' WIB'
-                        : '-';
-                    $fullDateTip = !empty($ss['created_at'])
-                        ? \Illuminate\Support\Carbon::parse($ss['created_at'])->setTimezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y - H:i:s') . ' WIB'
-                        : '-';
-                    $status = strtolower($ss['status'] ?? 'success');
-                @endphp
-
-                <article
-                    class="screenshot-card group bg-white rounded-[20px] border border-[#ECEEF2] overflow-hidden flex flex-col"
-                    data-id="{{ $ss['id'] }}"
-                    data-filename="{{ strtolower($filename) }}"
-                    data-window="{{ strtolower($activeWindow) }}"
-                    data-user="{{ strtolower($ssUser) }}"
-                    data-status="{{ $status }}"
-                    data-img="{{ $imgUrl }}"
-                    data-resolution="{{ $resolution }}"
-                    data-size="{{ $fileSize }}"
-                    data-date="{{ $createdAt }}"
+            {{-- =================================================================
+                 GRID GALLERY SCREENSHOTS
+                 ================================================================= --}}
+            <section aria-label="Daftar Tangkapan Layar">
+                <div
+                    id="screenshots-grid"
+                    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
                 >
-                    {{-- Thumbnail Gambar --}}
-                    <div class="relative screenshot-img-wrapper w-full bg-[#1A1D1F] overflow-hidden cursor-pointer" data-preview-trigger>
-                        @if (!empty($imgUrl))
-                            <img
-                                src="{{ $imgUrl }}"
-                                alt="{{ $filename }}"
-                                loading="lazy"
-                                class="w-full h-full object-cover object-top"
-                                onerror="this.onerror=null; this.src='https://placehold.co/600x338/1f242d/white?text=No+Preview';"
-                            />
-                        @else
-                            <div class="w-full h-full flex items-center justify-center text-[#7C828D] text-[13px]">
-                                Preview Tidak Tersedia
-                            </div>
-                        @endif
+                    @forelse ($screenshots as $ss)
+                        @php
+                            $imgUrl = $ss['image_url'] ?? '';
+                            $filename = $ss['filename'] ?? ('screenshot_' . $ss['id'] . '.png');
+                            $activeWindow = !empty(trim((string) ($ss['active_window'] ?? ''))) ? $ss['active_window'] : 'General Desktop';
+                            $resolution = $ss['resolution'] ?? '1920x1080';
+                            $fileSize = isset($ss['file_size_kb']) ? number_format((float) $ss['file_size_kb'], 1) . ' KB' : '-';
+                            $ssUser = $ss['user_name'] ?? 'unknown';
 
-                        {{-- Overlay Hover Preview --}}
-                        <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-[#1A1D1F] text-[12px] font-semibold shadow-sm backdrop-blur-sm">
-                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                                    <circle cx="11" cy="11" r="8"/>
-                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                                </svg>
-                                <span>Perbesar</span>
-                            </span>
-                        </div>
+                            $createdAt = !empty($ss['created_at'])
+                                ? \Illuminate\Support\Carbon::parse($ss['created_at'])->setTimezone('Asia/Jakarta')->locale('id')->translatedFormat('d M Y, H:i:s') . ' WIB'
+                                : '-';
+                            $fullDateTip = !empty($ss['created_at'])
+                                ? \Illuminate\Support\Carbon::parse($ss['created_at'])->setTimezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y - H:i:s') . ' WIB'
+                                : '-';
+                            $status = strtolower($ss['status'] ?? 'success');
+                            $statusDot = match ($status) {
+                                'success' => 'bg-emerald-500',
+                                'pending' => 'bg-amber-500',
+                                'failed'  => 'bg-rose-500',
+                                default   => 'bg-[#98A2B3]',
+                            };
+                        @endphp
 
-                        {{-- Badge Resolusi Pojok Kiri Atas --}}
-                        <div class="absolute top-2.5 left-2.5">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-white text-[11px] font-medium tracking-tight">
-                                {{ $resolution }}
-                            </span>
-                        </div>
-
-                        {{-- Badge Status Pojok Kanan Atas --}}
-                        <div class="absolute top-2.5 right-2.5">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md {{ $status === 'success' ? 'bg-[#3BB77E]/90 text-white' : 'bg-[#FFBC99] text-[#1A1D1F]' }} text-[11px] font-semibold capitalize backdrop-blur-sm">
-                                {{ $status }}
-                            </span>
-                        </div>
-                    </div>
-
-                    {{-- Informasi Kartu Screenshot --}}
-                    <div class="p-4 flex-1 flex flex-col justify-between">
-                        <div>
-                            {{-- Header Window Title --}}
-                            <div class="flex items-center gap-1.5 mb-1.5">
-                                <svg class="w-3.5 h-3.5 text-[#6F767E] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="2" y="3" width="20" height="14" rx="2"/>
-                                    <line x1="8" y1="21" x2="16" y2="21"/>
-                                    <line x1="12" y1="17" x2="12" y2="21"/>
-                                </svg>
-                                <h3 class="text-[13.5px] font-semibold text-[#1A1D1F] truncate" title="{{ $activeWindow }}">
-                                    {{ $activeWindow }}
-                                </h3>
-                            </div>
-
-                            {{-- Nama File Monospace --}}
-                            <p class="font-mono text-[11.5px] text-[#7C828D] truncate mb-3" title="{{ $filename }}">
-                                {{ $filename }}
-                            </p>
-                        </div>
-
-                        {{-- Footer Metadata & Aksi --}}
-                        <div class="pt-3 border-t border-[#F2F3F5] flex items-center justify-between text-[11.5px] text-[#7C828D]">
-                            <span class="truncate" title="{{ $fullDateTip }}">{{ $createdAt }}</span>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span class="font-medium text-[#1A1D1F]">{{ $fileSize }}</span>
-
-                                {{-- Tombol Salin URL --}}
+                        <article
+                            class="screenshot-card group bg-white rounded-xl border border-[#E6E8EC] hover:border-[#BFC6D0] overflow-hidden flex flex-col transition-colors duration-150"
+                            data-id="{{ $ss['id'] }}"
+                            data-filename="{{ strtolower($filename) }}"
+                            data-filename-raw="{{ $filename }}"
+                            data-window="{{ strtolower($activeWindow) }}"
+                            data-window-raw="{{ $activeWindow }}"
+                            data-user="{{ strtolower($ssUser) }}"
+                            data-status="{{ $status }}"
+                            data-img="{{ $imgUrl }}"
+                            data-resolution="{{ $resolution }}"
+                            data-size="{{ $fileSize }}"
+                            data-date="{{ $createdAt }}"
+                        >
+                            {{-- Thumbnail --}}
+                            <div class="relative screenshot-img-wrapper w-full bg-[#111315] overflow-hidden cursor-pointer border-b border-[#EAECEF]" data-preview-trigger>
                                 @if (!empty($imgUrl))
-                                    <button
-                                        type="button"
-                                        class="copy-url-btn p-1 rounded-md hover:bg-[#F4F5F7] text-[#6F767E] hover:text-[#1A1D1F] transition-colors cursor-pointer"
-                                        data-url="{{ $imgUrl }}"
-                                        title="Salin URL gambar"
-                                    >
-                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                                        </svg>
-                                    </button>
+                                    <img
+                                        src="{{ $imgUrl }}"
+                                        alt="{{ $filename }}"
+                                        loading="lazy"
+                                        class="w-full h-full object-cover object-top"
+                                        onerror="this.onerror=null; this.src='https://placehold.co/600x338/111315/98a2b3?text=No+Preview';"
+                                    />
+                                @else
+                                    <div class="w-full h-full flex items-center justify-center text-[#8E959F] text-[12px] font-mono">
+                                        No preview
+                                    </div>
                                 @endif
+
+                                {{-- Subtle hover preview action --}}
+                                <div class="absolute inset-0 bg-[#111315]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-[#111315] text-[12px] font-medium shadow-sm">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="11" cy="11" r="8"/>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                        </svg>
+                                        <span>Perbesar</span>
+                                    </span>
+                                </div>
+
+                                {{-- Resolusi (understated monospace tag) --}}
+                                <div class="absolute bottom-2 right-2">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-[#111315]/75 backdrop-blur-xs text-white/95 font-mono text-[10.5px] tabular-nums">
+                                        {{ $resolution }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {{-- Card Body --}}
+                            <div class="p-3.5 flex-1 flex flex-col justify-between gap-3">
+                                <div class="min-w-0">
+                                    <h3 class="text-[13px] font-semibold text-[#111315] truncate" title="{{ $activeWindow }}">
+                                        {{ $activeWindow }}
+                                    </h3>
+                                    <p class="font-mono text-[11px] text-[#7A818A] truncate mt-0.5" title="{{ $filename }}">
+                                        {{ $filename }}
+                                    </p>
+                                </div>
+
+                                <div class="pt-2.5 border-t border-[#F2F3F5] flex items-center justify-between gap-2 text-[11px] text-[#667085]">
+                                    <div class="flex items-center gap-1.5 min-w-0">
+                                        <span class="w-1.5 h-1.5 rounded-full shrink-0 {{ $statusDot }}" title="Status: {{ $status }}"></span>
+                                        <span class="truncate tabular-nums" title="{{ $fullDateTip }}">{{ $createdAt }}</span>
+                                    </div>
+
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <span class="font-mono text-[11px] text-[#344054] tabular-nums">{{ $fileSize }}</span>
+                                        @if (!empty($imgUrl))
+                                            <button
+                                                type="button"
+                                                class="copy-url-btn inline-flex items-center justify-center w-6 h-6 rounded-md hover:bg-[#F2F4F7] text-[#667085] hover:text-[#111315] transition-colors cursor-pointer"
+                                                data-url="{{ $imgUrl }}"
+                                                title="Salin URL gambar"
+                                                aria-label="Salin URL gambar"
+                                            >
+                                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                                </svg>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    @empty
+                        <div id="ss-initial-empty" class="col-span-full py-14 px-6 text-center rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFAFB]/50">
+                            <p class="text-[14px] font-semibold text-[#111315]">
+                                Belum ada tangkapan layar untuk {{ $displayFolderTitle }}
+                            </p>
+                            <p class="text-[12.5px] text-[#667085] mt-1.5 max-w-md mx-auto leading-relaxed">
+                                Folder ini terisolasi per user. Saat klien LoveYou mengunggah screenshot baru ke <code class="font-mono text-[11.5px] text-[#344054]">hasil_ss</code>, gambar akan langsung muncul di sini secara realtime.
+                            </p>
+                            <div class="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white border border-[#E6E8EC] text-[12px] text-[#475467]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                <span>Menunggu stream Supabase Realtime</span>
                             </div>
                         </div>
-                    </div>
-                </article>
-            @empty
-                <div class="col-span-full py-16 px-6 text-center rounded-2xl border border-dashed border-[#E5E7EB] bg-[#FAFAFC]/60">
-                    <div class="w-14 h-14 mx-auto rounded-2xl bg-[#EBF6FE] text-[#2B78C5] flex items-center justify-center mb-4">
-                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                            <circle cx="12" cy="13" r="4"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-[16px] font-semibold text-[#1A1D1F]">Belum Ada Tangkapan Layar untuk User "{{ $folderName }}"</h3>
-                    <p class="text-[13px] text-[#7C828D] mt-1.5 max-w-md mx-auto">
-                        Akun <strong class="text-[#1A1D1F]">{{ $folderName }}</strong> terpisah dari user lainnya. Tangkapan layar dari user sebelumnya tidak terikut ke akun ini. Saat LoveYou mulai mengambil tangkapan layar untuk user <strong class="text-[#1A1D1F]">{{ $folderName }}</strong>, hasilnya akan langsung tampil di sini secara realtime.
-                    </p>
-                    <div class="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-[#E6E8EC] text-[12px] text-[#2B78C5] font-medium shadow-2xs">
-                        <span class="w-2 h-2 rounded-full bg-[#3BB77E] animate-pulse"></span>
-                        <span>Menunggu tangkapan layar LoveYou (Realtime Aktif)</span>
-                    </div>
+                    @endforelse
                 </div>
-            @endforelse
-        </div>
 
-        {{-- State Kosong Jika Filter Pencarian Tidak Cocok --}}
-        <div id="ss-empty-state" class="hidden py-16 text-center rounded-2xl border border-dashed border-[#E5E7EB] mt-4">
-            <p class="text-[14.5px] font-medium text-[#1A1D1F]">Tidak ada screenshot yang cocok dengan filter</p>
-            <p class="text-[13px] text-[#7C828D] mt-1">Coba sesuaikan kata kunci pencarian atau reset filter di atas.</p>
+                {{-- State Kosong Hasil Filter --}}
+                <div id="ss-empty-state" class="hidden py-12 px-6 text-center rounded-xl border border-[#EAECEF] bg-[#FAFAFB]/50 mt-4">
+                    <p class="text-[13.5px] font-medium text-[#111315]">Tidak ada screenshot yang cocok dengan filter</p>
+                    <p class="text-[12.5px] text-[#667085] mt-1">Sesuaikan kata kunci pencarian atau reset filter di atas.</p>
+                </div>
+            </section>
         </div>
     </div>
 
     {{-- =====================================================================
-         LIGHTBOX MODAL PREVIEW SCREENSHOT
+         LIGHTBOX MODAL PREVIEW SCREENSHOT (Dengan Navigasi ← / →)
          ===================================================================== --}}
     <div
         id="lightbox-modal"
-        class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-7 is-hidden"
+        class="fixed inset-0 z-50 bg-[#0B0D10]/92 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 is-hidden"
         role="dialog"
         aria-modal="true"
         aria-label="Preview Screenshot"
     >
-        {{-- Tombol Tutup --}}
-        <button
-            type="button"
-            id="lightbox-close"
-            class="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer z-10"
-            aria-label="Tutup"
-        >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-        </button>
+        <div class="relative max-w-5xl w-full max-h-[92vh] flex flex-col">
+            {{-- Top Info Bar --}}
+            <div class="flex items-center justify-between gap-4 pb-3 text-white">
+                <div class="min-w-0">
+                    <div id="lb-window" class="text-[14px] font-semibold truncate">Window Title</div>
+                    <div id="lb-meta" class="font-mono text-[11.5px] text-white/60 mt-0.5 tabular-nums">1920x1080 · 0 KB · WIB</div>
+                </div>
 
-        {{-- Kontainer Gambar Modal --}}
-        <div class="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center">
-            <div class="w-full flex items-center justify-between text-white/80 text-[13px] mb-2 px-1">
-                <span id="lb-window" class="font-semibold text-white truncate max-w-[60%]">Window Title</span>
-                <span id="lb-meta" class="font-mono text-white/70">1920x1080 • 212 KB • WIB</span>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button
+                        type="button"
+                        id="lb-prev"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                        title="Sebelumnya (←)"
+                        aria-label="Screenshot sebelumnya"
+                    >
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M15 18l-6-6 6-6"/>
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        id="lb-next"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                        title="Berikutnya (→)"
+                        aria-label="Screenshot berikutnya"
+                    >
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        id="lightbox-close"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer ml-1"
+                        title="Tutup (Esc)"
+                        aria-label="Tutup"
+                    >
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <div class="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black flex items-center justify-center max-h-[78vh]">
+            {{-- Frame Gambar --}}
+            <div class="relative w-full rounded-xl overflow-hidden border border-white/10 bg-black flex items-center justify-center max-h-[76vh]">
                 <img
                     id="lb-image"
                     src=""
                     alt="Preview"
-                    class="max-w-full max-h-[78vh] object-contain rounded-xl"
+                    class="max-w-full max-h-[76vh] object-contain"
                 />
             </div>
 
-            <div class="w-full flex items-center justify-between text-white/70 text-[12px] mt-2.5 px-1">
-                <span id="lb-filename" class="font-mono truncate max-w-[50%]">filename.png</span>
-                <div class="flex items-center gap-3">
+            {{-- Bottom Action Bar --}}
+            <div class="flex items-center justify-between gap-4 pt-3 text-[12px] text-white/70">
+                <span id="lb-filename" class="font-mono truncate">filename.png</span>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button
+                        type="button"
+                        id="lb-copy-url"
+                        class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[12px] font-medium transition-colors cursor-pointer"
+                    >
+                        Salin URL
+                    </button>
                     <a
                         id="lb-open-raw"
                         href="#"
                         target="_blank"
                         rel="noopener"
-                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                        class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white text-[#111315] hover:bg-white/90 text-[12px] font-medium transition-colors"
                     >
-                        <span>Buka Gambar Asli</span>
+                        <span>Buka Asli</span>
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                             <polyline points="15 3 21 3 21 9"/>
@@ -621,7 +574,6 @@
             const dropdowns = document.querySelectorAll('.filter-dropdown');
             const resetBtn = document.getElementById('reset-ss-filters');
             const countBadge = document.getElementById('ss-total-count');
-            const statusPill = document.getElementById('realtime-status-pill');
 
             // Lightbox Modal
             const lightbox = document.getElementById('lightbox-modal');
@@ -630,7 +582,11 @@
             const lbMeta = document.getElementById('lb-meta');
             const lbFilename = document.getElementById('lb-filename');
             const lbOpenRaw = document.getElementById('lb-open-raw');
+            const lbCopyUrl = document.getElementById('lb-copy-url');
+            const lbPrev = document.getElementById('lb-prev');
+            const lbNext = document.getElementById('lb-next');
             const lbClose = document.getElementById('lightbox-close');
+            let currentLightboxCard = null;
 
             const filters = {
                 query: '',
@@ -639,7 +595,13 @@
                 sort: 'newest',
             };
 
-            // Format Tanggal Indonesia (WIB - Asia/Jakarta)
+            const escapeHtml = (str) => String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
             const formatWIB = (isoStr) => {
                 if (!isoStr) return '-';
                 try {
@@ -651,28 +613,29 @@
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit',
-                        hour12: false
+                        second: '2-digit',
+                        hour12: false,
                     }).formatToParts(d);
 
-                    const day = parts.find(p => p.type === 'day')?.value || '';
-                    const month = parts.find(p => p.type === 'month')?.value || '';
-                    const year = parts.find(p => p.type === 'year')?.value || '';
-                    const hour = parts.find(p => p.type === 'hour')?.value || '00';
-                    const minute = parts.find(p => p.type === 'minute')?.value || '00';
+                    const day = parts.find((p) => p.type === 'day')?.value || '';
+                    const month = parts.find((p) => p.type === 'month')?.value || '';
+                    const year = parts.find((p) => p.type === 'year')?.value || '';
+                    const hour = parts.find((p) => p.type === 'hour')?.value || '00';
+                    const minute = parts.find((p) => p.type === 'minute')?.value || '00';
+                    const second = parts.find((p) => p.type === 'second')?.value || '00';
 
-                    return `${day} ${month} ${year}, ${hour}:${minute} WIB`;
+                    return `${day} ${month} ${year}, ${hour}:${minute}:${second} WIB`;
                 } catch {
                     return isoStr;
                 }
             };
 
-            // Notifikasi Toast Ringan
             const notify = (msg) => {
                 let box = document.getElementById('app-toast');
                 if (!box) {
                     box = document.createElement('div');
                     box.id = 'app-toast';
-                    box.className = 'fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl bg-[#1A1D1F] text-white text-[13px] shadow-xl border border-white/10 transition-all duration-200 opacity-0 translate-y-2 pointer-events-none';
+                    box.className = 'fixed bottom-5 right-5 z-50 px-3.5 py-2.5 rounded-xl bg-[#111315] text-white text-[12.5px] font-medium shadow-lg border border-white/10 transition-all duration-200 opacity-0 translate-y-2 pointer-events-none';
                     document.body.appendChild(box);
                 }
                 box.textContent = msg;
@@ -683,7 +646,6 @@
                 }, 3000);
             };
 
-            // Filter & Sort Fungsi
             const applyFilters = () => {
                 const q = filters.query.toLowerCase().trim();
                 let visibleCount = 0;
@@ -711,11 +673,10 @@
                 });
 
                 if (emptyState) {
-                    emptyState.classList.toggle('hidden', visibleCount > 0);
+                    emptyState.classList.toggle('hidden', cards.length === 0 || visibleCount > 0);
                 }
             };
 
-            // Search input listener
             if (searchInput) {
                 searchInput.addEventListener('input', (e) => {
                     filters.query = e.target.value;
@@ -723,7 +684,6 @@
                 });
             }
 
-            // Dropdown filter listener
             const closeAllDropdowns = () => {
                 dropdowns.forEach((dd) => {
                     const menu = dd.querySelector('.filter-dropdown-menu');
@@ -751,13 +711,13 @@
                         optBtn.addEventListener('click', (e) => {
                             e.stopPropagation();
                             const val = optBtn.dataset.value || 'All';
-                            valLabel.textContent = val;
+                            valLabel.textContent = optBtn.dataset.label || val;
                             filters[fKey] = val.toLowerCase();
 
                             menu.querySelectorAll('.filter-option').forEach((b) => {
-                                b.classList.remove('font-semibold', 'bg-[#F8F9FB]');
+                                b.classList.remove('font-semibold', 'bg-[#F4F5F7]', 'text-[#111315]');
                             });
-                            optBtn.classList.add('font-semibold', 'bg-[#F8F9FB]');
+                            optBtn.classList.add('font-semibold', 'bg-[#F4F5F7]', 'text-[#111315]');
 
                             closeAllDropdowns();
                             applyFilters();
@@ -768,7 +728,6 @@
 
             document.addEventListener('click', closeAllDropdowns);
 
-            // Reset filters
             if (resetBtn) {
                 resetBtn.addEventListener('click', () => {
                     filters.query = '';
@@ -786,31 +745,45 @@
                     });
 
                     applyFilters();
-                    notify('Filter berhasil direset');
+                    notify('Filter direset');
                 });
             }
 
-            // Lightbox modal preview
+            // Lightbox modal preview + navigasi antar screenshot
+            const getVisibleCards = () => Array.from(grid.querySelectorAll('.screenshot-card:not(.hidden)'));
+
             const openLightbox = (card) => {
                 if (!lightbox || !card) return;
-                const img = card.dataset.img;
-                const win = card.dataset.window;
-                const res = card.dataset.resolution;
-                const size = card.dataset.size;
-                const date = card.dataset.date;
-                const filename = card.dataset.filename;
+                currentLightboxCard = card;
+                const img = card.dataset.img || '';
+                const win = card.dataset.windowRaw || card.dataset.window || 'Screenshot';
+                const res = card.dataset.resolution || '';
+                const size = card.dataset.size || '';
+                const date = card.dataset.date || '';
+                const filename = card.dataset.filenameRaw || card.dataset.filename || '';
 
-                if (lbImage) lbImage.src = img || '';
-                if (lbWindow) lbWindow.textContent = win || 'Screenshot';
-                if (lbMeta) lbMeta.textContent = `${res} • ${size} • ${date}`;
-                if (lbFilename) lbFilename.textContent = filename || '';
+                if (lbImage) lbImage.src = img;
+                if (lbWindow) lbWindow.textContent = win;
+                if (lbMeta) lbMeta.textContent = `${res} · ${size} · ${date}`;
+                if (lbFilename) lbFilename.textContent = filename;
                 if (lbOpenRaw) lbOpenRaw.href = img || '#';
 
                 lightbox.classList.remove('is-hidden');
             };
 
+            const navigateLightbox = (delta) => {
+                if (!currentLightboxCard) return;
+                const visible = getVisibleCards();
+                if (visible.length <= 1) return;
+                const idx = visible.indexOf(currentLightboxCard);
+                if (idx === -1) return;
+                const nextIdx = (idx + delta + visible.length) % visible.length;
+                openLightbox(visible[nextIdx]);
+            };
+
             const closeLightbox = () => {
                 if (lightbox) lightbox.classList.add('is-hidden');
+                currentLightboxCard = null;
             };
 
             document.querySelectorAll('[data-preview-trigger]').forEach((wrapper) => {
@@ -827,27 +800,43 @@
                     if (!url) return;
                     try {
                         await navigator.clipboard.writeText(url);
-                        notify('URL gambar disalin ke clipboard');
+                        notify('URL gambar disalin');
                     } catch {
-                        notify('Gagal menyalin link');
+                        notify('Gagal menyalin URL');
                     }
                 });
             });
 
-            if (lbClose) lbClose.addEventListener('click', closeLightbox);
-            if (lightbox) {
-                lightbox.addEventListener('click', (e) => {
-                    if (e.target === lightbox) closeLightbox();
-                });
-            }
+            lbCopyUrl?.addEventListener('click', async () => {
+                const url = currentLightboxCard?.dataset.img;
+                if (!url) return;
+                try {
+                    await navigator.clipboard.writeText(url);
+                    notify('URL gambar disalin');
+                } catch {
+                    notify('Gagal menyalin URL');
+                }
+            });
 
-            // Keyboard Shortcuts
+            lbPrev?.addEventListener('click', () => navigateLightbox(-1));
+            lbNext?.addEventListener('click', () => navigateLightbox(1));
+            lbClose?.addEventListener('click', closeLightbox);
+            lightbox?.addEventListener('click', (e) => {
+                if (e.target === lightbox) closeLightbox();
+            });
+
             document.addEventListener('keydown', (e) => {
+                const isLightboxOpen = lightbox && !lightbox.classList.contains('is-hidden');
                 if (e.key === 'Escape') {
                     closeLightbox();
                     closeAllDropdowns();
-                }
-                if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && searchInput) {
+                } else if (isLightboxOpen && e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    navigateLightbox(-1);
+                } else if (isLightboxOpen && e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    navigateLightbox(1);
+                } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && searchInput) {
                     e.preventDefault();
                     searchInput.focus();
                     searchInput.select();
@@ -856,21 +845,19 @@
 
             // =================================================================
             // REALTIME SCREENSHOT INSERTER (Supabase WebSocket + Auto-Poll)
-            // Terisolasi Khusus per User (user_name)
             // =================================================================
             const insertNewCard = (ss) => {
                 if (!ss || !ss.id) return;
-                // Hindari duplikasi jika sudah tampil
                 if (document.querySelector(`.screenshot-card[data-id="${ss.id}"]`)) return;
 
-                // Isolasi: Jika sedang membuka folder spesifik (bukan 'all'), pastikan user_name cocok
                 if (currentFolder && currentFolder !== 'all' && currentFolder !== 'hasil_ss') {
                     const ssUser = (ss.user_name || '').trim().toLowerCase();
                     const targetUser = currentFolder.trim().toLowerCase();
-                    if (ssUser !== targetUser) {
-                        return; // Tangkapan layar ini milik user lain, jangan tampilkan di sini!
-                    }
+                    if (ssUser !== targetUser) return;
                 }
+
+                // Hapus placeholder kosong awal jika ada
+                document.getElementById('ss-initial-empty')?.remove();
 
                 const filename = ss.filename || `screenshot_${ss.id}.png`;
                 const activeWin = (ss.active_window || '').trim() || 'General Desktop';
@@ -880,11 +867,23 @@
                 const status = (ss.status || 'success').toLowerCase();
                 const imgUrl = ss.image_url || '';
 
+                const statusDot = status === 'success'
+                    ? 'bg-emerald-500'
+                    : (status === 'pending' ? 'bg-amber-500' : (status === 'failed' ? 'bg-rose-500' : 'bg-[#98A2B3]'));
+
+                const safeFilename = escapeHtml(filename);
+                const safeActiveWin = escapeHtml(activeWin);
+                const safeRes = escapeHtml(res);
+                const safeDate = escapeHtml(dateWIB);
+                const safeImg = escapeHtml(imgUrl);
+
                 const card = document.createElement('article');
-                card.className = 'screenshot-card new-screenshot-highlight group bg-white rounded-[20px] border border-[#ECEEF2] overflow-hidden flex flex-col';
+                card.className = 'screenshot-card new-screenshot-highlight group bg-white rounded-xl border border-[#E6E8EC] hover:border-[#BFC6D0] overflow-hidden flex flex-col transition-colors duration-150';
                 card.dataset.id = ss.id;
                 card.dataset.filename = filename.toLowerCase();
+                card.dataset.filenameRaw = filename;
                 card.dataset.window = activeWin.toLowerCase();
+                card.dataset.windowRaw = activeWin;
                 card.dataset.user = (ss.user_name || '').toLowerCase();
                 card.dataset.status = status;
                 card.dataset.img = imgUrl;
@@ -893,62 +892,50 @@
                 card.dataset.date = dateWIB;
 
                 card.innerHTML = `
-                    <div class="relative screenshot-img-wrapper w-full bg-[#1A1D1F] overflow-hidden cursor-pointer" data-preview-trigger>
+                    <div class="relative screenshot-img-wrapper w-full bg-[#111315] overflow-hidden cursor-pointer border-b border-[#EAECEF]" data-preview-trigger>
                         <img
-                            src="${imgUrl}"
-                            alt="${filename}"
+                            src="${safeImg}"
+                            alt="${safeFilename}"
                             loading="lazy"
                             class="w-full h-full object-cover object-top"
-                            onerror="this.onerror=null; this.src='https://placehold.co/600x338/1f242d/white?text=No+Preview';"
+                            onerror="this.onerror=null; this.src='https://placehold.co/600x338/111315/98a2b3?text=No+Preview';"
                         />
-                        <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-[#1A1D1F] text-[12px] font-semibold shadow-sm backdrop-blur-sm">
-                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <div class="absolute inset-0 bg-[#111315]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-[#111315] text-[12px] font-medium shadow-sm">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="11" cy="11" r="8"/>
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                                 </svg>
                                 <span>Perbesar</span>
                             </span>
                         </div>
-                        <div class="absolute top-2.5 left-2.5">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-white text-[11px] font-medium tracking-tight">
-                                ${res}
-                            </span>
-                        </div>
-                        <div class="absolute top-2.5 right-2.5">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md ${status === 'success' ? 'bg-[#3BB77E]/90 text-white' : 'bg-[#FFBC99] text-[#1A1D1F]'} text-[11px] font-semibold capitalize backdrop-blur-sm">
-                                ${status}
+                        <div class="absolute bottom-2 right-2">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-[#111315]/75 backdrop-blur-xs text-white/95 font-mono text-[10.5px] tabular-nums">
+                                ${safeRes}
                             </span>
                         </div>
                     </div>
-                    <div class="p-4 flex-1 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center gap-1.5 mb-1.5">
-                                <svg class="w-3.5 h-3.5 text-[#6F767E] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="2" y="3" width="20" height="14" rx="2"/>
-                                    <line x1="8" y1="21" x2="16" y2="21"/>
-                                    <line x1="12" y1="17" x2="12" y2="21"/>
-                                </svg>
-                                <h3 class="text-[13.5px] font-semibold text-[#1A1D1F] truncate" title="${activeWin}">
-                                    ${activeWin}
-                                </h3>
-                            </div>
-                            <p class="font-mono text-[11.5px] text-[#7C828D] truncate mb-3" title="${filename}">
-                                ${filename}
-                            </p>
+                    <div class="p-3.5 flex-1 flex flex-col justify-between gap-3">
+                        <div class="min-w-0">
+                            <h3 class="text-[13px] font-semibold text-[#111315] truncate" title="${safeActiveWin}">${safeActiveWin}</h3>
+                            <p class="font-mono text-[11px] text-[#7A818A] truncate mt-0.5" title="${safeFilename}">${safeFilename}</p>
                         </div>
-                        <div class="pt-3 border-t border-[#F2F3F5] flex items-center justify-between text-[11.5px] text-[#7C828D]">
-                            <span class="truncate" title="${dateWIB}">${dateWIB}</span>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span class="font-medium text-[#1A1D1F]">${size}</span>
+                        <div class="pt-2.5 border-t border-[#F2F3F5] flex items-center justify-between gap-2 text-[11px] text-[#667085]">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}" title="Status: ${escapeHtml(status)}"></span>
+                                <span class="truncate tabular-nums" title="${safeDate}">${safeDate}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="font-mono text-[11px] text-[#344054] tabular-nums">${escapeHtml(size)}</span>
                                 ${imgUrl ? `
                                     <button
                                         type="button"
-                                        class="copy-url-btn p-1 rounded-md hover:bg-[#F4F5F7] text-[#6F767E] hover:text-[#1A1D1F] transition-colors cursor-pointer"
-                                        data-url="${imgUrl}"
+                                        class="copy-url-btn inline-flex items-center justify-center w-6 h-6 rounded-md hover:bg-[#F2F4F7] text-[#667085] hover:text-[#111315] transition-colors cursor-pointer"
+                                        data-url="${safeImg}"
                                         title="Salin URL gambar"
+                                        aria-label="Salin URL gambar"
                                     >
-                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                                         </svg>
@@ -959,34 +946,30 @@
                     </div>
                 `;
 
-                // Pasang trigger preview & copy
                 card.querySelector('[data-preview-trigger]')?.addEventListener('click', () => openLightbox(card));
                 card.querySelector('.copy-url-btn')?.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     if (imgUrl) {
                         await navigator.clipboard.writeText(imgUrl);
-                        notify('URL gambar disalin ke clipboard');
+                        notify('URL gambar disalin');
                     }
                 });
 
-                // Sisipkan di baris teratas grid
                 grid.prepend(card);
                 cards.unshift(card);
 
-                // Update total counter
                 if (countBadge) {
-                    const currentCount = parseInt(countBadge.textContent) || 0;
+                    const currentCount = parseInt(countBadge.textContent, 10) || 0;
                     countBadge.textContent = `${currentCount + 1} ss`;
                 }
 
-                // Update info detail panel (device_name, resolution, status) secara realtime
                 if (ss.device_name) {
                     const devEl = document.getElementById('detail-device-name');
                     if (devEl) {
                         devEl.textContent = ss.device_name;
                         devEl.title = ss.device_name;
-                        devEl.classList.add('text-[#3BB77E]');
-                        setTimeout(() => devEl.classList.remove('text-[#3BB77E]'), 1500);
+                        devEl.classList.add('text-emerald-600');
+                        setTimeout(() => devEl.classList.remove('text-emerald-600'), 1400);
                     }
                 }
                 if (ss.resolution) {
@@ -994,57 +977,46 @@
                     if (resEl) {
                         resEl.textContent = ss.resolution;
                         resEl.title = ss.resolution;
-                        resEl.classList.add('text-[#3BB77E]');
-                        setTimeout(() => resEl.classList.remove('text-[#3BB77E]'), 1500);
+                        resEl.classList.add('text-emerald-600');
+                        setTimeout(() => resEl.classList.remove('text-emerald-600'), 1400);
                     }
                 }
                 if (ss.status) {
                     const stEl = document.getElementById('detail-ss-status');
                     if (stEl) {
                         stEl.textContent = ss.status;
-                        stEl.className = `block text-[13px] font-semibold capitalize ${ss.status.toLowerCase() === 'success' ? 'text-[#03543F]' : 'text-[#854D0E]'} truncate transition-colors`;
                     }
                 }
 
                 if (emptyState) emptyState.classList.add('hidden');
-
-                notify(`📸 Screenshot baru diterima untuk ${currentFolder}: ${activeWin}`);
+                notify(`Capture baru: ${activeWin}`);
             };
 
-            // Inisialisasi Realtime Subscription
             if (window.supabase) {
                 const channelName = `hasil_ss_channel_${currentFolder.replace(/[^a-zA-Z0-9_]/g, '_')}`;
-
                 let channelBuilder = window.supabase.channel(channelName);
 
-                // Filter Realtime Supabase jika folder spesifik
                 if (currentFolder && currentFolder !== 'all' && currentFolder !== 'hasil_ss') {
                     channelBuilder = channelBuilder.on('postgres_changes', {
                         event: 'INSERT',
                         schema: 'public',
                         table: 'hasil_ss',
-                        filter: `user_name=eq.${currentFolder}`
+                        filter: `user_name=eq.${currentFolder}`,
                     }, (payload) => {
-                        console.log('Realtime new screenshot for ' + currentFolder + ':', payload.new);
                         insertNewCard(payload.new);
                     });
                 } else {
                     channelBuilder = channelBuilder.on('postgres_changes', {
                         event: 'INSERT',
                         schema: 'public',
-                        table: 'hasil_ss'
+                        table: 'hasil_ss',
                     }, (payload) => {
                         insertNewCard(payload.new);
                     });
                 }
 
-                channelBuilder.subscribe((status) => {
-                    if (statusPill && status === 'SUBSCRIBED') {
-                        statusPill.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF6FE] text-[#2B78C5] text-[12.5px] font-semibold';
-                    }
-                });
+                channelBuilder.subscribe();
 
-                // Polling cadangan (setiap 3.5 detik) dengan filter user_name yang sama
                 setInterval(async () => {
                     try {
                         const topCard = grid.querySelector('.screenshot-card');
@@ -1064,8 +1036,8 @@
                         if (!error && Array.isArray(data) && data.length > 0) {
                             data.forEach((item) => insertNewCard(item));
                         }
-                    } catch (e) {
-                        // ignore error
+                    } catch (_) {
+                        // silent fallback
                     }
                 }, 3500);
             }

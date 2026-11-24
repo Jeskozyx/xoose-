@@ -3,6 +3,7 @@
 namespace App\Services\Remote;
 
 use App\Models\AppDevice;
+use App\Models\AppProject;
 use App\Models\ManagedApp;
 use App\Models\ServiceConfig;
 use App\Models\ServiceDefinition;
@@ -16,6 +17,267 @@ class ConfigVersionService
     public function __construct(
         private readonly AuditLogService $auditLog,
     ) {}
+
+    /**
+     * Menemukan proyek App Builder yang terhubung dengan ManagedApp
+     * (prioritas relasi `app_project_id`, fallback pencocokan slug identik).
+     */
+    public function resolveLinkedProject(ManagedApp $app): ?AppProject
+    {
+        if ($app->relationLoaded('project') && $app->project !== null) {
+            return $app->project;
+        }
+
+        if ($app->app_project_id !== null) {
+            return $app->project()->first();
+        }
+
+        if (! empty($app->slug)) {
+            return AppProject::where('slug', $app->slug)->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Mengekstrak baseline konfigurasi per service dari konfigurasi & fitur AppProject (App Builder).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function extractAllBuilderBaselines(AppProject $project): array
+    {
+        $cfg = is_array($project->configuration) ? $project->configuration : [];
+        $features = is_array($project->features) ? $project->features : [];
+        $baselines = [];
+
+        // 1. screenshot_service
+        $ss = [];
+        if (isset($cfg['interval_seconds']) && is_numeric($cfg['interval_seconds'])) {
+            $interval = (int) $cfg['interval_seconds'];
+            if ($interval >= 1 && $interval <= 3600) {
+                $ss['interval_seconds'] = $interval;
+            }
+        }
+        if (! empty($cfg['image_format'])) {
+            $fmt = strtolower(trim((string) $cfg['image_format']));
+            if (in_array($fmt, ['webp', 'jpg', 'jpeg', 'png'], true)) {
+                $ss['image_format'] = $fmt;
+            }
+        }
+        if (isset($cfg['jpg_quality']) && is_numeric($cfg['jpg_quality'])) {
+            $quality = (int) $cfg['jpg_quality'];
+            if ($quality >= 10 && $quality <= 100) {
+                $ss['jpg_quality'] = $quality;
+            }
+        }
+        if (array_key_exists('keep_local_file', $features)) {
+            $ss['keep_local_file'] = (bool) $features['keep_local_file'];
+        } elseif (array_key_exists('keep_local_file', $cfg)) {
+            $ss['keep_local_file'] = filter_var($cfg['keep_local_file'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (! empty($cfg['local_folder']) && is_string($cfg['local_folder'])) {
+            $ss['local_folder'] = trim($cfg['local_folder']);
+        }
+        if (! empty($ss)) {
+            $baselines['screenshot_service'] = $ss;
+        }
+
+        // 2. ui_service
+        $ui = [];
+        if (! empty($cfg['date_invitation_text']) && is_string($cfg['date_invitation_text'])) {
+            $ui['date_invitation_text'] = trim($cfg['date_invitation_text']);
+        }
+        if (! empty($cfg['date_countdown_target']) && is_string($cfg['date_countdown_target'])) {
+            $target = trim($cfg['date_countdown_target']);
+            $ui['date_countdown_target'] = $target;
+            if (empty($cfg['tanggal_date']) && preg_match('/^(\d{4}-\d{2}-\d{2})/', $target, $m)) {
+                $ui['tanggal_date'] = $m[1];
+            }
+        }
+        if (! empty($cfg['tanggal_date']) && is_string($cfg['tanggal_date'])) {
+            $ui['tanggal_date'] = trim($cfg['tanggal_date']);
+        }
+        if (! empty($ui)) {
+            $baselines['ui_service'] = $ui;
+        }
+
+        // 3. tray_service
+        $tray = [];
+        if (! empty($cfg['icon']) && is_string($cfg['icon'])) {
+            $tray['icon'] = trim($cfg['icon']);
+        }
+        if (! empty($project->name) && is_string($project->name)) {
+            $tray['app_name'] = trim($project->name);
+        }
+        if (! empty($tray)) {
+            $baselines['tray_service'] = $tray;
+        }
+
+        // 4. sync_service
+        $sync = [];
+        if (! empty($cfg['supabase_url']) && is_string($cfg['supabase_url'])) {
+            $sync['supabase_url'] = trim($cfg['supabase_url']);
+        }
+        if (! empty($cfg['table_name']) && is_string($cfg['table_name'])) {
+            $sync['table_name'] = trim($cfg['table_name']);
+        }
+        if (! empty($cfg['bucket_name']) && is_string($cfg['bucket_name'])) {
+            $sync['bucket_name'] = trim($cfg['bucket_name']);
+        }
+        if (! empty($sync)) {
+            $baselines['sync_service'] = $sync;
+        }
+
+        // 5. notification_service
+        if (array_key_exists('tray_notifications', $features)) {
+            $notifyEnabled = (bool) $features['tray_notifications'];
+            $baselines['notification_service'] = [
+                'enabled' => $notifyEnabled,
+                'notify_on_capture' => $notifyEnabled,
+            ];
+        }
+
+        // 6. hotkey_service (Emergency Uninstall Shortcut)
+        $hotkey = [];
+        if (array_key_exists('emergency_uninstall_hotkey', $features)) {
+            $hotkey['enabled'] = (bool) $features['emergency_uninstall_hotkey'];
+        }
+        $allowedCombos = [
+            'Ctrl+Shift+F12',
+            'Ctrl+Alt+F12',
+            'Ctrl+Shift+Q',
+            'Ctrl+Alt+Q',
+            'Ctrl+Shift+K',
+            'Ctrl+Alt+K',
+            'Ctrl+Shift+X',
+            'Ctrl+Alt+X',
+            'Ctrl+Shift+End',
+            'Ctrl+Alt+End',
+        ];
+        $rawCombo = $cfg['uninstall_hotkey_combo'] ?? ($cfg['hotkey_combo'] ?? null);
+        if (is_string($rawCombo) && in_array(trim($rawCombo), $allowedCombos, true)) {
+            $hotkey['hotkey_combo'] = trim($rawCombo);
+        }
+        if (! empty($hotkey)) {
+            $baselines['hotkey_service'] = $hotkey;
+        }
+
+        return $baselines;
+    }
+
+    /**
+     * Mengambil baseline awal dari ManagedApp.default_config & AppProject Builder untuk service tertentu.
+     *
+     * @return array<string, mixed>
+     */
+    public function extractBuilderBaselineForService(ManagedApp $app, string $serviceKey): array
+    {
+        $baseline = [];
+
+        if (is_array($app->default_config) && isset($app->default_config[$serviceKey]) && is_array($app->default_config[$serviceKey])) {
+            $baseline = $app->default_config[$serviceKey];
+        }
+
+        $project = $this->resolveLinkedProject($app);
+        if ($project) {
+            $projectBaselines = $this->extractAllBuilderBaselines($project);
+            if (! empty($projectBaselines[$serviceKey])) {
+                $baseline = array_merge($baseline, $projectBaselines[$serviceKey]);
+            }
+        }
+
+        $definition = ServiceDefinition::where('service_key', $serviceKey)->first();
+        $allowedKeys = array_keys($definition?->configuration_schema['properties'] ?? []);
+        if (! empty($allowedKeys)) {
+            $baseline = array_intersect_key($baseline, array_flip($allowedKeys));
+        }
+
+        return $baseline;
+    }
+
+    /**
+     * Menghitung state lengkap editor Service Config dengan pewarisan berlapis:
+     * Default Skema -> Baseline App Builder -> App Active Config -> Device Override Config.
+     *
+     * @return array<string, mixed>
+     */
+    public function resolveEditorState(ManagedApp $app, ServiceDefinition $definition, ?AppDevice $device = null): array
+    {
+        $serviceKey = $definition->service_key;
+        $schemaProps = $definition->configuration_schema['properties'] ?? [];
+        $schemaDefaults = [];
+        foreach ($schemaProps as $k => $prop) {
+            if (array_key_exists('default', $prop)) {
+                $schemaDefaults[$k] = $prop['default'];
+            }
+        }
+
+        $builderProject = $this->resolveLinkedProject($app);
+        $builderBaseline = $this->extractBuilderBaselineForService($app, $serviceKey);
+
+        $appActiveConfig = ServiceConfig::with('updater')
+            ->where('managed_app_id', $app->id)
+            ->where('service_key', $serviceKey)
+            ->whereNull('device_id')
+            ->where('is_active', true)
+            ->orderByDesc('config_version')
+            ->first();
+
+        $deviceActiveConfig = $device !== null
+            ? ServiceConfig::with('updater')
+                ->where('managed_app_id', $app->id)
+                ->where('service_key', $serviceKey)
+                ->where('device_id', $device->id)
+                ->where('is_active', true)
+                ->orderByDesc('config_version')
+                ->first()
+            : null;
+
+        $inheritedValues = array_merge(
+            $schemaDefaults,
+            $builderBaseline,
+            $appActiveConfig?->config_json ?? [],
+        );
+
+        $effectiveValues = array_merge(
+            $inheritedValues,
+            $deviceActiveConfig?->config_json ?? [],
+        );
+
+        $appVersion = $device !== null
+            ? ($device->app_version ?: ($app->current_version ?: '1.0.0'))
+            : ($app->current_version ?: '1.0.0');
+
+        if ($device !== null && $deviceActiveConfig !== null) {
+            $sourceType = 'device_override';
+            $sourceLabel = "Device Override v{$deviceActiveConfig->config_version}";
+        } elseif ($appActiveConfig !== null) {
+            $sourceType = 'app_config';
+            $sourceLabel = $device !== null
+                ? "Warisan App Config v{$appActiveConfig->config_version}"
+                : "App Config v{$appActiveConfig->config_version}";
+        } elseif (! empty($builderBaseline)) {
+            $sourceType = 'app_builder';
+            $sourceLabel = "Baseline App Builder (App v{$appVersion})";
+        } else {
+            $sourceType = 'schema_default';
+            $sourceLabel = "Default Skema (App v{$appVersion})";
+        }
+
+        return [
+            'schema_defaults' => $schemaDefaults,
+            'builder_project' => $builderProject,
+            'builder_baseline' => $builderBaseline,
+            'has_builder_baseline' => ! empty($builderBaseline),
+            'app_active_config' => $appActiveConfig,
+            'device_active_config' => $deviceActiveConfig,
+            'inherited_values' => $inheritedValues,
+            'effective_values' => $effectiveValues,
+            'app_version' => $appVersion,
+            'source_type' => $sourceType,
+            'source_label' => $sourceLabel,
+        ];
+    }
 
     /**
      * Memvalidasi config_json terhadap JSON Schema pada service_definitions (mendukung nested object & array).
@@ -182,9 +444,36 @@ class ConfigVersionService
                 $currentActive->update(['is_active' => false]);
             }
 
-            $merged = $replaceConfig
-                ? $validated
-                : array_merge($currentActive?->config_json ?? [], $validated);
+            if ($replaceConfig) {
+                $merged = $validated;
+            } elseif ($currentActive !== null) {
+                $merged = array_merge($currentActive->config_json ?? [], $validated);
+            } else {
+                $initialBase = $this->extractBuilderBaselineForService($app, $serviceKey);
+                if ($device !== null) {
+                    $appActive = ServiceConfig::where('managed_app_id', $app->id)
+                        ->where('service_key', $serviceKey)
+                        ->whereNull('device_id')
+                        ->where('is_active', true)
+                        ->orderByDesc('config_version')
+                        ->first();
+                    if ($appActive && is_array($appActive->config_json)) {
+                        $initialBase = array_merge($initialBase, $appActive->config_json);
+                    }
+                }
+                $merged = array_merge($initialBase, $validated);
+            }
+
+            $forceApply = false;
+            if ($device !== null && $maxVersion === 0) {
+                $appMaxVersion = (int) (ServiceConfig::where('managed_app_id', $app->id)
+                    ->where('service_key', $serviceKey)
+                    ->whereNull('device_id')
+                    ->max('config_version') ?? 0);
+                if ($appMaxVersion > 1) {
+                    $forceApply = true;
+                }
+            }
 
             $created = ServiceConfig::create([
                 'managed_app_id' => $app->id,
@@ -193,7 +482,7 @@ class ConfigVersionService
                 'config_version' => $nextVersion,
                 'config_json' => $merged,
                 'is_active' => true,
-                'force_apply' => false,
+                'force_apply' => $forceApply,
                 'updated_by' => $actor?->id,
                 'previous_version_id' => $currentActive?->id,
                 'change_notes' => $changeNotes,

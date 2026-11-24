@@ -5,20 +5,39 @@
 @source '../views/**/*.blade.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Google Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
 /* Custom shadows */
 .shadow-active-pill {
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px 0 rgba(16, 24, 40, 0.06), 0 1px 2px -1px rgba(16, 24, 40, 0.04);
+}
+
+/* Sidebar subtle scrollbar */
+.sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(142, 149, 159, 0.25) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(142, 149, 159, 0.28);
+    border-radius: 9999px;
 }
 
 /* Sidebar submenu smooth expand / collapse */
 .submenu-panel {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .submenu-panel.is-open {
@@ -32,32 +51,11 @@
 /* Sidebar chevron icon rotation */
 .sidebar-group .chevron-icon {
     transition: transform 0.2s ease;
+    transform: rotate(-90deg);
 }
 
 .sidebar-group.is-expanded .chevron-icon {
-    transform: rotate(180deg);
-}
-
-/* Curved tree navigation lines for submenu */
-.submenu-tree {
-    position: relative;
-    padding-left: 20px;
-    margin-left: 17px;
-    border-left: 1.5px solid #E6E8EC;
-}
-
-.submenu-item {
-    position: relative;
-}
-
-.submenu-item::before {
-    content: '';
-    position: absolute;
-    left: -20px;
-    top: 50%;
-    width: 14px;
-    height: 1.5px;
-    background-color: #E6E8EC;
+    transform: rotate(0deg);
 }
 
 /* Collapsible Sections (Folders & Workflows) */

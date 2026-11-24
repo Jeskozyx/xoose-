@@ -60,15 +60,23 @@ class ControlPlaneApiController extends Controller
             ? Str::slug($validated['slug'])
             : Str::slug($validated['name']) . '-' . strtolower(Str::random(4));
 
+        $linkedProject = ! empty($validated['app_project_id'])
+            ? \App\Models\AppProject::find($validated['app_project_id'])
+            : \App\Models\AppProject::where('slug', $slug)->first();
+
+        $defaultConfig = ! empty($validated['default_config'])
+            ? $validated['default_config']
+            : ($linkedProject ? $this->configVersionService->extractAllBuilderBaselines($linkedProject) : []);
+
         $app = ManagedApp::create([
-            'app_project_id' => $validated['app_project_id'] ?? null,
+            'app_project_id' => $linkedProject?->id,
             'owner_id' => $user->id,
             'name' => $validated['name'],
             'slug' => $slug,
             'description' => $validated['description'] ?? null,
             'current_version' => $validated['current_version'] ?? '1.0.0',
             'build_status' => 'idle',
-            'default_config' => $validated['default_config'] ?? [],
+            'default_config' => $defaultConfig,
             'is_active' => true,
         ]);
 

@@ -59,17 +59,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Sidebar accordion groups (Product, Customers, Income)
+    // Sidebar collapsible groups (e.g. Remote Manager) with persisted state
     const groups = document.querySelectorAll('.sidebar-group');
     groups.forEach((group) => {
         const toggle = group.querySelector('.sidebar-toggle');
         const panel = group.querySelector('.submenu-panel');
+        const groupKey = group.dataset.group;
         if (!toggle || !panel) return;
+
+        const hasActiveChild = group.dataset.activeGroup === 'true';
+        const storageKey = groupKey ? `xoose_sidebar_group_${groupKey}` : null;
+        const savedState = storageKey ? localStorage.getItem(storageKey) : null;
+
+        if (!hasActiveChild && savedState === 'collapsed') {
+            group.classList.remove('is-expanded');
+            panel.classList.remove('is-open');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
 
         toggle.addEventListener('click', () => {
             const isExpanded = group.classList.toggle('is-expanded');
             panel.classList.toggle('is-open', isExpanded);
             toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            if (storageKey) {
+                localStorage.setItem(storageKey, isExpanded ? 'expanded' : 'collapsed');
+            }
         });
     });
 

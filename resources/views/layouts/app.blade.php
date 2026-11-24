@@ -8,6 +8,7 @@
     <meta name="supabase-key" content="{{ config('services.supabase.key', 'sb_publishable_u2lBe4CRF_2XEqbkniBjbw_p0gGEXgZ') }}">
 
     <title>@yield('title', config('app.name', 'Xoose') . ' — Dashboard')</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
 
     @fonts
 
@@ -42,8 +43,6 @@
                     $currentActiveMenu = 'folders';
                 } elseif (request()->routeIs('dashboard') || request()->is('/') || request()->is('dashboard')) {
                     $currentActiveMenu = 'dashboard';
-                } elseif (request()->has('menu')) {
-                    $currentActiveMenu = request()->query('menu');
                 } else {
                     $currentActiveMenu = 'dashboard';
                 }

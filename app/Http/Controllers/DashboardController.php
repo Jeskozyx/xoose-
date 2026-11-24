@@ -2,21 +2,108 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppDevice;
+use App\Models\AppProject;
+use App\Models\ManagedApp;
+use App\Models\ServiceCommand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
     /**
-     * Tampilkan halaman Dashboard dengan folder dari Supabase user_responses.
+     * Tampilkan halaman Dashboard operasional Xoose (Supabase Folders + App Builder + Remote Control).
      */
     public function index()
     {
         $folders = $this->fetchFolders();
-        $workflows = []; // Tidak ada dummy: hanya muncul jika ada data
+        $totalScreenshots = collect($folders)->sum(fn ($folder) => (int) ($folder['items'] ?? 0));
 
-        return view('dashboard', compact('folders', 'workflows'));
+        $recentProjects = collect();
+        $projectsCount = 0;
+        $builtProjectsCount = 0;
+
+        $managedAppsCount = 0;
+        $devicesCount = 0;
+        $onlineDevicesCount = 0;
+        $pendingCommandsCount = 0;
+        $recentDevices = collect();
+
+        try {
+            if (Schema::hasTable('app_projects')) {
+                $projectsCount = AppProject::count();
+                $builtProjectsCount = AppProject::where('status', 'built')->count();
+                $recentProjects = AppProject::with('latestBuild')
+                    ->latest('updated_at')
+                    ->take(5)
+                    ->get();
+            }
+
+            if (auth()->check() && Schema::hasTable('managed_apps')) {
+                $ownerId = auth()->id();
+                $managedAppsCount = ManagedApp::where('owner_id', $ownerId)->count();
+
+                if (Schema::hasTable('app_devices')) {
+                    $deviceQuery = AppDevice::query()
+                        ->whereHas('managedApp', fn ($q) => $q->where('owner_id', $ownerId));
+
+                    $devicesCount = (clone $deviceQuery)->count();
+
+                    $timeout = (int) config('remote-control.heartbeat_timeout_seconds', 90);
+                    $onlineDevicesCount = (clone $deviceQuery)
+                        ->whereNull('revoked_at')
+                        ->where('status', AppDevice::STATUS_ONLINE)
+                        ->where('last_seen_at', '>=', now()->subSeconds($timeout))
+                        ->count();
+
+                    $recentDevices = (clone $deviceQuery)
+                        ->with('managedApp')
+                        ->orderByDesc('last_seen_at')
+                        ->orderByDesc('id')
+                        ->take(5)
+                        ->get();
+                }
+
+                if (Schema::hasTable('service_commands')) {
+                    $pendingCommandsCount = ServiceCommand::query()
+                        ->whereIn('status', [ServiceCommand::STATUS_PENDING, ServiceCommand::STATUS_DELIVERED])
+                        ->whereHas('device.managedApp', fn ($q) => $q->where('owner_id', $ownerId))
+                        ->count();
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Dashboard local metrics load skipped: ' . $e->getMessage());
+        }
+
+        $supabaseRawUrl = (string) config('services.supabase.url', '');
+        $supabaseHost = parse_url($supabaseRawUrl, PHP_URL_HOST) ?: 'supabase.co';
+
+        $ecosystem = [
+            'supabase_host'  => $supabaseHost,
+            'template_ready' => is_dir((string) config('application-builder.paths.template', '')),
+            'engine_ready'   => is_dir((string) config('application-builder.paths.engine', '')),
+        ];
+
+        $metrics = [
+            'folders_count'          => count($folders),
+            'total_screenshots'      => $totalScreenshots,
+            'projects_count'         => $projectsCount,
+            'built_projects_count'   => $builtProjectsCount,
+            'managed_apps_count'     => $managedAppsCount,
+            'devices_count'          => $devicesCount,
+            'online_devices_count'   => $onlineDevicesCount,
+            'pending_commands_count' => $pendingCommandsCount,
+        ];
+
+        return view('dashboard', compact(
+            'folders',
+            'recentProjects',
+            'recentDevices',
+            'metrics',
+            'ecosystem'
+        ));
     }
 
     /**
